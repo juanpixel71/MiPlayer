@@ -23,6 +23,7 @@
             position: relative;
         }
 
+        /* ESTRUCTURA DE LAS 3 PANTALLAS */
         .screen {
             display: none;
             width: 100%;
@@ -38,40 +39,36 @@
             display: flex;
         }
 
+        /* CABECERAS */
         .header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 16px;
+            justify-content: flex-start;
+            padding: 0 20px;
             background-color: #181818;
             border-bottom: 1px solid #282828;
-            height: 60px;
+            height: 64px;
         }
 
         .header h2 {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .btn-change-folder {
-            background: #282828;
-            color: #e0e0e0;
-            border: 1px solid #404040;
-            padding: 6px 12px;
-            font-size: 12px;
-            border-radius: 20px;
-            cursor: pointer;
-        }
-
+        /* CONTENIDO DESLIZABLE */
         .content {
             flex: 1;
             overflow-y: auto;
             padding: 16px;
-            padding-bottom: 70px;
+            padding-bottom: 76px; /* Espacio reservado para el pie */
         }
 
+        /* PIE DE PÁGINA (SOLO PANTALLAS 2 Y 3) */
         .footer {
             display: flex;
             align-items: center;
@@ -79,7 +76,7 @@
             padding: 0 16px;
             background-color: #181818;
             border-top: 1px solid #282828;
-            height: 56px;
+            height: 60px;
             position: absolute;
             bottom: 0;
             width: 100%;
@@ -89,7 +86,7 @@
             background: none;
             border: none;
             color: #ffffff;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: bold;
             display: flex;
             align-items: center;
@@ -98,56 +95,19 @@
             letter-spacing: 0.5px;
         }
 
-        /* 1ª PANTALLA: ABRIR MI MÚSICA */
-        #screen-welcome {
-            justify-content: center;
-            align-items: center;
-            padding: 24px;
-            text-align: center;
-            background: linear-gradient(180deg, #1f1f1f 0%, #121212 100%);
-        }
-
-        .welcome-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-            width: 100%;
-            max-width: 320px;
-        }
-
-        .folder-icon-large {
-            font-size: 90px;
-            line-height: 1;
-            margin-bottom: 10px;
-        }
-
-        .btn-main-open {
-            background-color: #ffffff;
-            color: #000000;
-            border: none;
-            padding: 18px 32px;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 12px;
-            width: 100%;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-        }
-
-        /* LISTAS (2ª Y 3ª PANTALLA) */
+        /* LISTAS (1ª Y 2ª PANTALLA) */
         .list-container {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
 
         .list-item {
             display: flex;
             align-items: center;
             background-color: #181818;
-            padding: 14px 16px;
-            border-radius: 8px;
+            padding: 16px;
+            border-radius: 10px;
             border: 1px solid #242424;
             cursor: pointer;
         }
@@ -156,100 +116,96 @@
             background-color: #282828;
         }
 
-        /* 2ª PANTALLA: ÁLBUMES */
+        /* 1ª PANTALLA: ÁLBUMES */
         .album-cover-placeholder {
-            width: 48px;
-            height: 48px;
+            width: 52px;
+            height: 52px;
             background-color: #282828;
-            border-radius: 6px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 26px;
             margin-right: 16px;
             border: 1px solid #383838;
+            flex-shrink: 0;
         }
 
         .album-text h4 {
-            font-size: 16px;
+            font-size: 17px;
             color: #ffffff;
             font-weight: 600;
         }
 
         .album-text p {
-            font-size: 13px;
+            font-size: 14px;
             color: #a0a0a0;
-            margin-top: 2px;
+            margin-top: 3px;
         }
 
-        /* 3ª PANTALLA: CANCIONES */
-        .song-checkbox {
-            width: 22px;
-            height: 22px;
-            border: 2px solid #555555;
-            border-radius: 4px;
-            margin-right: 16px;
-            flex-shrink: 0;
-        }
-
+        /* 2ª PANTALLA: CANCIONES (SIN CHECKBOX) */
         .song-text h4 {
-            font-size: 15px;
+            font-size: 16px;
             color: #ffffff;
             font-weight: 500;
+            line-height: 1.3;
         }
 
-        /* 4ª PANTALLA: REPRODUCTOR COMPLETO */
+        /* 3ª PANTALLA: REPRODUCTOR (MÁS GRANDE) */
         #screen-player .content {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: space-around;
-            padding: 24px 16px 80px 16px;
+            padding: 24px 20px 80px 20px;
             text-align: center;
         }
 
         .player-cover-container {
-            width: 240px;
-            height: 240px;
+            width: 260px;
+            height: 260px;
             background-color: #181818;
-            border-radius: 16px;
+            border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             border: 1px solid #282828;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
             margin-top: 10px;
         }
 
         .player-cover-icon {
-            font-size: 100px;
+            font-size: 110px;
         }
 
         .player-info-block {
-            margin: 20px 0;
+            margin: 24px 0;
             width: 100%;
         }
 
+        /* TÍTULOS Y ARTISTAS AUMENTADOS DE TAMAÑO */
         .player-song-title {
-            font-size: 22px;
+            font-size: 26px;
             font-weight: bold;
             color: #ffffff;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         .player-artist-album {
-            font-size: 15px;
-            color: #b0b0b0;
+            font-size: 18px;
+            color: #b3b3b3;
+            font-weight: 500;
         }
 
+        /* BOTONES DE CONTROL MÁS GRANDES */
         .player-controls-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 32px;
+            gap: 36px;
             width: 100%;
             margin-bottom: 10px;
         }
@@ -258,7 +214,7 @@
             background: none;
             border: none;
             color: #ffffff;
-            font-size: 32px;
+            font-size: 40px; /* Aumentado */
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -266,52 +222,105 @@
         }
 
         .btn-ctrl-main {
-            width: 64px;
-            height: 64px;
+            width: 76px; /* Aumentado */
+            height: 76px; /* Aumentado */
             background-color: #ffffff;
             color: #000000;
             border-radius: 50%;
-            font-size: 28px;
-            padding-left: 3px;
+            font-size: 34px; /* Aumentado */
+            padding-left: 4px;
+            box-shadow: 0 4px 14px rgba(255,255,255,0.2);
+        }
+
+        /* BOTONES DE PRUEBA NAVEGADOR (P1, P2, P3) */
+        .demo-nav {
+            position: fixed;
+            top: 0;
+            right: 0;
+            background: rgba(255,0,0,0.85);
+            z-index: 9999;
+            padding: 6px;
+            display: flex;
+            gap: 6px;
+            border-bottom-left-radius: 8px;
+        }
+        .demo-nav button {
+            font-size: 11px;
+            font-weight: bold;
+            padding: 4px 8px;
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <div id="screen-welcome" class="screen active">
-        <div class="welcome-box">
-            <h1 style="font-size: 24px; font-weight: bold;">ABRIR MI MÚSICA</h1>
-            <div class="folder-icon-large">📁</div>
-            <button id="btn-select-folder" class="btn-main-open">ABRIR CARPETA</button>
-            <input type="file" id="file-input" webkitdirectory directory multiple style="display: none;">
-        </div>
+    <!-- BOTONES ROJOS DE PRUEBA TEMPORALES -->
+    <div class="demo-nav">
+        <button onclick="showDemo(1)">P1</button>
+        <button onclick="showDemo(2)">P2</button>
+        <button onclick="showDemo(3)">P3</button>
     </div>
 
-    <div id="screen-albums" class="screen">
+    <!-- 1ª PANTALLA: ÁLBUMES (HOME) -->
+    <div id="screen-albums" class="screen active">
         <header class="header">
             <h2>ALBUMS</h2>
-            <button id="btn-change-folder" class="btn-change-folder">Cambiar Carpeta</button>
         </header>
         <div class="content">
-            <div id="albums-list" class="list-container"></div>
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="album-cover-placeholder">🎵</div>
+                    <div class="album-text">
+                        <h4>Nombre del Álbum 01</h4>
+                        <p>12 canciones</p>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="album-cover-placeholder">🎵</div>
+                    <div class="album-text">
+                        <h4>Nombre del Álbum 02</h4>
+                        <p>8 canciones</p>
+                    </div>
+                </div>
+            </div>
         </div>
-        <footer class="footer">
-            <button id="btn-back-to-welcome" class="btn-back-footer">◀ ATRÁS MIMUS</button>
-        </footer>
+        <!-- Sin pie de página / sin botón de atrás -->
     </div>
 
+    <!-- 2ª PANTALLA: CANCIONES -->
     <div id="screen-songs" class="screen">
         <header class="header">
-            <h2 id="songs-header-title">CANCIONES</h2>
+            <h2 id="songs-header-title">NOMBRE DEL ÁLBUM</h2>
         </header>
         <div class="content">
-            <div id="songs-list" class="list-container"></div>
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="song-text">
+                        <h4>01 - Primer Título de Canción</h4>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="song-text">
+                        <h4>02 - Segundo Título de Canción</h4>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="song-text">
+                        <h4>03 - Tercer Título de Canción</h4>
+                    </div>
+                </div>
+            </div>
         </div>
         <footer class="footer">
-            <button id="btn-back-to-albums" class="btn-back-footer">◀ ATRÁS ALBUMS</button>
+            <button class="btn-back-footer">◀ ATRÁS ALBUMS</button>
         </footer>
     </div>
 
+    <!-- 3ª PANTALLA: REPRODUCTOR -->
     <div id="screen-player" class="screen">
         <div class="content">
             <div class="player-cover-container">
@@ -319,22 +328,29 @@
             </div>
             
             <div class="player-info-block">
-                <h1 id="player-title" class="player-song-title">Ninguna canción</h1>
-                <p id="player-artist-album" class="player-artist-album">-- / --</p>
+                <h1 class="player-song-title">01 - TÍTULO CANCIÓN</h1>
+                <p class="player-artist-album">Nombre del Álbum / Artista</p>
             </div>
 
             <div class="player-controls-row">
-                <button id="btn-prev" class="btn-ctrl">⏮</button>
-                <button id="btn-play-pause" class="btn-ctrl btn-ctrl-main">▶</button>
-                <button id="btn-next" class="btn-ctrl">⏭</button>
+                <button class="btn-ctrl">⏮</button>
+                <button class="btn-ctrl btn-ctrl-main">▶</button>
+                <button class="btn-ctrl">⏭</button>
             </div>
-            <audio id="audio-element"></audio>
         </div>
         <footer class="footer">
-            <button id="btn-back-to-songs" class="btn-back-footer">◀ ATRÁS CANCIONES</button>
+            <button class="btn-back-footer">◀ ATRÁS CANCIONES</button>
         </footer>
     </div>
 
-    <script src="app.js"></script>
+    <script>
+        // Script de prueba para cambiar entre las 3 pantallas en tu navegador
+        function showDemo(num) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            if(num === 1) document.getElementById('screen-albums').classList.add('active');
+            if(num === 2) document.getElementById('screen-songs').classList.add('active');
+            if(num === 3) document.getElementById('screen-player').classList.add('active');
+        }
+    </script>
 </body>
 </html>
