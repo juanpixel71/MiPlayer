@@ -15,15 +15,15 @@ jobs:
         with:
           node-version: 22
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '21'
 
       - name: Compilar APK
         run: |
-          mkdir www
+          mkdir -p www
           cp index.html style.css app.js manifest.json www/ 2>/dev/null || true
           npm init -y
           npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
@@ -32,7 +32,7 @@ jobs:
           npx cap copy android
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
       - name: Subir Artefacto APK
         uses: actions/upload-artifact@v4
