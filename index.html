@@ -1,80 +1,86 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi Música</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mi Música</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app-container">
-    
-    <!-- 1ª PANTALLA: Cargar Carpeta Inicial -->
-    <section id="screen-1" class="screen">
-      <label for="folder-input" class="welcome-box">
-        <div class="folder-icon-huge">📁</div>
-        <h2>ABRIR MI MÚSICA</h2>
-      </label>
-      <input type="file" id="folder-input" webkitdirectory directory multiple accept="audio/*" style="display:none;">
-    </section>
 
-    <!-- 2ª PANTALLA: Lista de Álbumes -->
-    <section id="screen-2" class="screen hidden">
-      <header class="screen-header">
-        <h1>ÁLBUMS</h1>
-      </header>
-      <main id="albums-list" class="list-container"></main>
-      <footer class="screen-footer">
-        <button id="btn-back-mimus" class="btn-nav">◀ ATRÁS MIMUS</button>
-      </footer>
-    </section>
-
-    <!-- 3ª PANTALLA: Lista de Canciones -->
-    <section id="screen-3" class="screen hidden">
-      <header class="screen-header">
-        <h1 id="screen-3-title">CANCIONES</h1>
-      </header>
-      <main id="songs-list" class="list-container"></main>
-      <footer class="screen-footer">
-        <button id="btn-back-albums" class="btn-nav">◀ ATRÁS ÁLBUMS</button>
-      </footer>
-    </section>
-
-    <!-- 4ª PANTALLA: Reproductor -->
-    <section id="screen-4" class="screen hidden">
-      <main class="player-body">
-        <div class="art-container">
-          <div class="art-placeholder">🎵</div>
+    <!-- Pantalla de Bienvenida / Apertura de Carpeta -->
+    <div id="screen-welcome" class="screen active">
+        <div class="welcome-card">
+            <div class="app-logo">🎵</div>
+            <h1>Mi Música</h1>
+            <p>Selecciona tu carpeta de música para comenzar a escuchar sin conexión.</p>
+            <button id="btn-select-folder" class="btn-primary">Abrir Mi Música</button>
+            <input type="file" id="file-input" webkitdirectory directory multiple style="display: none;">
         </div>
+    </div>
+
+    <!-- Pantalla Principal de la App -->
+    <div id="screen-main" class="screen">
         
-        <div class="track-info">
-          <h2 id="player-title">01 - CANCIÓN</h2>
-          <p id="player-artist">album / artista</p>
+        <!-- Cabecera -->
+        <header class="app-header">
+            <h2>Mi Música</h2>
+            <button id="btn-change-folder" class="btn-secondary-sm">Cambiar Carpeta</button>
+        </header>
+
+        <!-- Pestañas de Navegación (Boceto Original) -->
+        <nav class="tabs-nav">
+            <button class="tab-btn active" data-tab="albums">Álbumes</button>
+            <button class="tab-btn" data-tab="artists">Artistas</button>
+            <button class="tab-btn" data-tab="songs">Canciones</button>
+        </nav>
+
+        <!-- Contenido de Pestañas -->
+        <main class="content-area">
+            
+            <!-- Vista de Álbumes (Carpetas) -->
+            <section id="tab-albums" class="tab-content active">
+                <div id="albums-grid" class="albums-grid"></div>
+            </section>
+
+            <!-- Vista de Artistas -->
+            <section id="tab-artists" class="tab-content">
+                <div id="artists-list" class="simple-list"></div>
+            </section>
+
+            <!-- Vista de Canciones (Todas) -->
+            <section id="tab-songs" class="tab-content">
+                <div id="songs-list" class="simple-list"></div>
+            </section>
+
+            <!-- Vista Detalle (Dentro de un álbum/artista) -->
+            <section id="view-detail" class="detail-view hidden">
+                <div class="detail-header">
+                    <button id="btn-back" class="btn-icon">← Volver</button>
+                    <h3 id="detail-title">Nombre del Álbum</h3>
+                </div>
+                <div id="detail-songs-list" class="simple-list"></div>
+            </section>
+
+        </main>
+
+        <!-- Reproductor Inferior Flotante -->
+        <div id="mini-player" class="mini-player hidden">
+            <div class="player-info">
+                <span id="player-title" class="track-title">Ninguna canción</span>
+                <span id="player-artist" class="track-artist">--</span>
+            </div>
+            <div class="player-controls">
+                <button id="btn-prev" class="btn-player">⏮</button>
+                <button id="btn-play-pause" class="btn-player btn-main-play">▶</button>
+                <button id="btn-next" class="btn-player">⏭</button>
+            </div>
+            <audio id="audio-element"></audio>
         </div>
 
-        <div class="progress-container">
-          <input type="range" id="progress-bar" value="0" min="0" max="100" step="0.1">
-          <div class="time-labels">
-            <span id="time-current">0:00</span>
-            <span id="time-total">0:00</span>
-          </div>
-        </div>
+    </div>
 
-        <div class="player-controls">
-          <button id="btn-prev" class="btn-ctrl">⏮</button>
-          <button id="btn-play" class="btn-ctrl btn-play">▶</button>
-          <button id="btn-next" class="btn-ctrl">⏭</button>
-        </div>
-      </main>
-      <footer class="screen-footer">
-        <button id="btn-back-songs" class="btn-nav">◀ ATRÁS CANCIONES</button>
-      </footer>
-    </section>
-
-    <audio id="audio-element"></audio>
-  </div>
-
-  <script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
