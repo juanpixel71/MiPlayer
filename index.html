@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Música</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1>Mi Música</h1>
+      <button id="btn-open" class="btn-main">📂 ABRIR CARPETA MIMUSICA</button>
+    </header>
+
+    <main id="file-tree">
+      <p class="placeholder">Selecciona tu carpeta MiMusica para empezar.</p>
+    </main>
+
+    <footer class="player-bar">
+      <div class="track-info">
+        <span id="track-title">Sin reproducción</span>
+        <span id="track-album" class="subtext"></span>
+      </div>
+      <audio id="audio-element"></audio>
+      <div class="controls">
+        <button id="btn-prev" class="btn-control">⏮</button>
+        <button id="btn-play" class="btn-control btn-large">▶</button>
+        <button id="btn-next" class="btn-control">⏭</button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
