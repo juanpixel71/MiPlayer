@@ -10,13 +10,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 22
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
 
       - name: Setup Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '21'
@@ -27,8 +27,7 @@ jobs:
           rm -rf www
           mkdir -p www
           cp index.html app.js manifest.json www/ 2>/dev/null || true
-          cp style.css www/ 2>/dev/null || true
-          cp *.png www/ 2>/dev/null || true
+          cp icon.png www/ 2>/dev/null || true
 
           # 2. Inicializar Capacitor
           npm init -y
@@ -36,19 +35,26 @@ jobs:
           npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir www
           npx cap add android
 
-          # 3. Forzar reemplazo de iconos en Android si existe alguna imagen icon/logo
+          # 3. Forzar reemplazo de icono de forma segura
           node -e '
             const fs = require("fs");
             const path = require("path");
-            let iconFile = ["icon.png", "logo.png", "icon-512.png"].find(f => fs.existsSync(f));
-            if (iconFile) {
+            const iconFile = "icon.png";
+            if (fs.existsSync(iconFile)) {
               const resDir = "android/app/src/main/res";
-              const mipmaps = fs.readdirSync(resDir).filter(d => d.startsWith("mipmap"));
-              mipmaps.forEach(folder => {
-                fs.copyFileSync(iconFile, path.join(resDir, folder, "ic_launcher.png"));
-                fs.copyFileSync(iconFile, path.join(resDir, folder, "ic_launcher_round.png"));
-                fs.copyFileSync(iconFile, path.join(resDir, folder, "ic_launcher_foreground.png"));
-              });
+              if (fs.existsSync(resDir)) {
+                const mipmaps = fs.readdirSync(resDir).filter(d => d.startsWith("mipmap"));
+                mipmaps.forEach(folder => {
+                  const targetDir = path.join(resDir, folder);
+                  try {
+                    fs.copyFileSync(iconFile, path.join(targetDir, "ic_launcher.png"));
+                    fs.copyFileSync(iconFile, path.join(targetDir, "ic_launcher_round.png"));
+                    fs.copyFileSync(iconFile, path.join(targetDir, "ic_launcher_foreground.png"));
+                  } catch (e) {
+                    console.log("Aviso en copia de icono:", e.message);
+                  }
+                });
+              }
             }
           '
 
