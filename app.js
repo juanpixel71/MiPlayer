@@ -1,159 +1,153 @@
-// Elementos DOM
+// Pantallas
+const screen1 = document.getElementById('screen-1');
+const screen2 = document.getElementById('screen-2');
+const screen3 = document.getElementById('screen-3');
+const screen4 = document.getElementById('screen-4');
+
+// Elementos
 const folderInput = document.getElementById('folder-input');
-const listContainer = document.getElementById('list-container');
-const placeholder = document.getElementById('placeholder');
-const btnBack = document.getElementById('btn-back');
-const headerTitle = document.getElementById('header-title');
+const albumsList = document.getElementById('albums-list');
+const songsList = document.getElementById('songs-list');
+const screen3Title = document.getElementById('screen-3-title');
 
 const audio = document.getElementById('audio-element');
-const btnPlay = document.getElementById('btn-play');
-const btnStop = document.getElementById('btn-stop');
-const btnPrev = document.getElementById('btn-prev');
-const btnNext = document.getElementById('btn-next');
-
-const trackTitle = document.getElementById('track-title');
-const trackAlbum = document.getElementById('track-album');
+const playerTitle = document.getElementById('player-title');
+const playerArtist = document.getElementById('player-artist');
 const progressBar = document.getElementById('progress-bar');
 const timeCurrent = document.getElementById('time-current');
 const timeTotal = document.getElementById('time-total');
+const btnPlay = document.getElementById('btn-play');
 
-// Estado de la aplicación
-let albums = {}; // Estructura: { 'NombreAlbum': [ {file, name, album}, ... ] }
-let currentAlbumName = null;
+// Botones Atrás
+document.getElementById('btn-back-mimus').onclick = () => showScreen(screen1);
+document.getElementById('btn-back-albums').onclick = () => showScreen(screen2);
+document.getElementById('btn-back-songs').onclick = () => showScreen(screen3);
+
+// Datos
+let albumsData = {};
 let currentPlaylist = [];
 let currentIndex = -1;
-let wakeLock = null;
 
-// Cargar carpeta con archivos
+function showScreen(screenToShow) {
+  [screen1, screen2, screen3, screen4].forEach(s => s.classList.add('hidden'));
+  screenToShow.classList.remove('hidden');
+}
+
+// Cargar música desde carpeta
 folderInput.addEventListener('change', (e) => {
   const files = Array.from(e.target.files);
-  albums = {};
+  albumsData = {};
 
   files.forEach(file => {
     if (file.name.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
-      // Extraer nombre del álbum desde la ruta relativa
-      const pathParts = file.webkitRelativePath.split('/');
-      let albumName = 'Varios';
+      const parts = file.webkitRelativePath.split('/');
+      let album = parts.length > 2 ? parts[parts.length - 2] : (parts[0] || 'Varios');
       
-      if (pathParts.length > 2) {
-        albumName = pathParts[pathParts.length - 2];
-      } else if (pathParts.length === 2) {
-        albumName = pathParts[0];
-      }
-
-      if (!albums[albumName]) albums[albumName] = [];
-      albums[albumName].push({
+      if (!albumsData[album]) albumsData[album] = [];
+      albumsData[album].push({
         file: file,
-        name: file.name.replace(/\.[^/.]+$/, ""), // Quitar extensión
-        album: albumName
+        name: file.name.replace(/\.[^/.]+$/, "")
       });
     }
   });
 
-  if (Object.keys(albums).length > 0) {
-    placeholder.classList.add('hidden');
-    showAlbumsView();
-  } else {
-    alert("No se encontraron archivos de audio en la carpeta seleccionada.");
+  if (Object.keys(albumsData).length > 0) {
+    renderAlbums();
+    showScreen(screen2);
   }
 });
 
-// Mostrar vista de Álbumes
-function showAlbumsView() {
-  currentAlbumName = null;
-  headerTitle.textContent = "Álbumes";
-  btnBack.classList.add('hidden');
-  listContainer.innerHTML = '';
-
-  Object.keys(albums).forEach(albumName => {
-    const card = document.createElement('div');
-    card.className = 'item-card';
-    card.innerHTML = `
-      <div class="item-icon">📁</div>
-      <div class="item-details">
-        <div class="item-name">${albumName}</div>
-        <div class="item-subtext">${albums[albumName].length} canciones</div>
+// Renderizar 2ª Pantalla (Álbumes)
+function renderAlbums() {
+  albumsList.innerHTML = '';
+  Object.keys(albumsData).forEach(albumName => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <div class="item-thumb">📁</div>
+      <div class="item-text">
+        <div class="item-title">${albumName}</div>
+        <div class="item-sub">${albumsData[albumName].length} canciones</div>
       </div>
     `;
-    card.onclick = () => showSongsView(albumName);
-    listContainer.appendChild(card);
+    row.onclick = () => renderSongs(albumName);
+    albumsList.appendChild(row);
   });
 }
 
-// Mostrar vista de Canciones de un Álbum
-function showSongsView(albumName) {
-  currentAlbumName = albumName;
-  headerTitle.textContent = albumName;
-  btnBack.classList.remove('hidden');
-  listContainer.innerHTML = '';
+// Renderizar 3ª Pantalla (Canciones)
+function renderSongs(albumName) {
+  screen3Title.textContent = albumName;
+  songsList.innerHTML = '';
+  currentPlaylist = albumsData[albumName];
 
-  albums[albumName].forEach((song, index) => {
-    const card = document.createElement('div');
-    card.className = 'item-card';
-    card.innerHTML = `
-      <div class="item-icon">🎵</div>
-      <div class="item-details">
-        <div class="item-name">${song.name}</div>
-        <div class="item-subtext">${albumName}</div>
+  currentPlaylist.forEach((song, idx) => {
+    const num = (idx + 1).toString().padStart(2, '0');
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <div class="item-thumb">${num}</div>
+      <div class="item-text">
+        <div class="item-title">${song.name}</div>
+        <div class="item-sub">${albumName}</div>
       </div>
     `;
-    card.onclick = () => {
-      currentPlaylist = albums[albumName];
-      playSong(index);
-    };
-    listContainer.appendChild(card);
+    row.onclick = () => playTrack(idx, albumName);
+    songsList.appendChild(row);
   });
+
+  showScreen(screen3);
 }
 
-// Botón Volver a Álbumes
-btnBack.onclick = () => showAlbumsView();
-
-// Reproducir Canción
-function playSong(index) {
-  if (index < 0 || index >= currentPlaylist.length) return;
-  currentIndex = index;
+// 4ª Pantalla (Reproductor)
+function playTrack(idx, albumName) {
+  currentIndex = idx;
   const song = currentPlaylist[currentIndex];
+  const num = (currentIndex + 1).toString().padStart(2, '0');
 
   audio.src = URL.createObjectURL(song.file);
-  audio.play().catch(err => console.log(err));
-  
-  trackTitle.textContent = song.name;
-  trackAlbum.textContent = song.album;
+  audio.play();
+
+  playerTitle.textContent = `${num} - ${song.name}`;
+  playerArtist.textContent = albumName;
   btnPlay.textContent = '⏸';
 
-  requestWakeLock(); // Activar pantalla siempre encendida
+  showScreen(screen4);
 }
 
-// Controles de Reproducción
+// Controles Reproductor
 btnPlay.onclick = () => {
   if (!audio.src) return;
   if (audio.paused) {
     audio.play();
     btnPlay.textContent = '⏸';
-    requestWakeLock();
   } else {
     audio.pause();
     btnPlay.textContent = '▶';
-    releaseWakeLock();
   }
 };
 
-btnStop.onclick = () => {
-  audio.pause();
-  audio.currentTime = 0;
-  btnPlay.textContent = '▶';
-  releaseWakeLock();
+document.getElementById('btn-next').onclick = () => {
+  if (currentIndex + 1 < currentPlaylist.length) {
+    playTrack(currentIndex + 1, playerArtist.textContent);
+  }
 };
 
-btnNext.onclick = () => playSong(currentIndex + 1);
-btnPrev.onclick = () => playSong(currentIndex - 1);
-audio.onended = () => playSong(currentIndex + 1);
+document.getElementById('btn-prev').onclick = () => {
+  if (currentIndex - 1 >= 0) {
+    playTrack(currentIndex - 1, playerArtist.textContent);
+  }
+};
 
-// Actualización de Barra de Progreso y Tiempo
+audio.onended = () => {
+  if (currentIndex + 1 < currentPlaylist.length) {
+    playTrack(currentIndex + 1, playerArtist.textContent);
+  }
+};
+
 audio.ontimeupdate = () => {
   if (audio.duration) {
-    const pct = (audio.currentTime / audio.duration) * 100;
-    progressBar.value = pct;
+    progressBar.value = (audio.currentTime / audio.duration) * 100;
     timeCurrent.textContent = formatTime(audio.currentTime);
     timeTotal.textContent = formatTime(audio.duration);
   }
@@ -170,21 +164,4 @@ function formatTime(sec) {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${m}:${s < 10 ? '0' : ''}${s}`;
-}
-
-// Mantener pantalla encendida mientras suena música
-async function requestWakeLock() {
-  try {
-    if ('wakeLock' in navigator && !wakeLock) {
-      wakeLock = await navigator.wakeLock.request('screen');
-    }
-  } catch (err) {
-    console.log('Wake Lock no disponible:', err);
-  }
-}
-
-function releaseWakeLock() {
-  if (wakeLock) {
-    wakeLock.release().then(() => { wakeLock = null; });
-  }
 }
