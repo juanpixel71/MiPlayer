@@ -5,121 +5,97 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mi Música</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; }
-        body { background-color: #121212; color: #ffffff; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        .screen { display: none; width: 100%; height: 100%; flex-direction: column; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; user-select: none; }
+        body { background-color: #121212; color: #ffffff; height: 100vh; overflow: hidden; }
+        .screen { display: none; width: 100%; height: 100%; flex-direction: column; position: absolute; top: 0; left: 0; }
         .screen.active { display: flex; }
         
-        /* Pantalla Bienvenida */
-        #screen-welcome { justify-content: center; align-items: center; padding: 20px; text-align: center; background: linear-gradient(180deg, #1e1e1e 0%, #121212 100%); }
-        .welcome-card { background: #282828; padding: 30px 20px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); max-width: 350px; width: 100%; }
-        .app-logo { font-size: 64px; margin-bottom: 10px; }
-        .welcome-card h1 { font-size: 24px; margin-bottom: 10px; color: #fff; }
-        .welcome-card p { font-size: 14px; color: #b3b3b3; margin-bottom: 25px; line-height: 1.4; }
+        /* CABECERAS Y BARRAS INFERIORES */
+        .header { display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #181818; border-bottom: 1px solid #282828; }
+        .footer { display: flex; align-items: center; justify-content: center; padding: 12px; background: #181818; border-top: 1px solid #282828; position: absolute; bottom: 0; width: 100%; }
         
-        /* Botones */
-        .btn-primary { background: #1db954; color: #fff; border: none; padding: 14px 28px; font-size: 16px; font-weight: bold; border-radius: 30px; width: 100%; cursor: pointer; }
-        .btn-primary:active { transform: scale(0.98); background: #1ed760; }
-        .btn-secondary-sm { background: #333; color: #fff; border: none; padding: 6px 12px; font-size: 12px; border-radius: 15px; }
-        .btn-icon { background: none; border: none; color: #1db954; font-size: 16px; font-weight: bold; cursor: pointer; padding: 5px 0; }
+        /* CONTENIDO PRINCIPAL */
+        .content { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 80px; }
+        .btn-change-folder { background: #333; color: #fff; border: none; padding: 6px 12px; font-size: 12px; border-radius: 15px; }
 
-        /* Cabecera y Navegación */
-        .app-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #181818; border-bottom: 1px solid #282828; }
-        .tabs-nav { display: flex; background: #181818; border-bottom: 1px solid #282828; }
-        .tab-btn { flex: 1; padding: 12px 0; background: none; border: none; color: #b3b3b3; font-size: 14px; font-weight: 600; border-bottom: 2px solid transparent; }
-        .tab-btn.active { color: #1db954; border-bottom-color: #1db954; }
+        /* 1ª PANTALLA: ABRIR MI MÚSICA */
+        #screen-welcome { justify-content: center; align-items: center; padding: 20px; text-align: center; background: linear-gradient(180deg, #1e1e1e 0%, #121212 100%); }
+        .app-logo { font-size: 80px; color: #1db954; margin-bottom: 20px; }
+        .welcome-title { font-size: 28px; margin-bottom: 30px; font-weight: bold; }
+        .btn-primary { background: #1db954; color: #fff; border: none; padding: 16px 32px; font-size: 18px; font-weight: bold; border-radius: 30px; cursor: pointer; }
+        .btn-primary:active { transform: scale(0.98); }
 
-        /* Contenido */
-        .content-area { flex: 1; overflow-y: auto; padding: 15px; position: relative; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .hidden { display: none !important; }
-
-        /* Rejilla de Álbumes */
-        .albums-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-        .album-card { background: #181818; border-radius: 8px; padding: 12px; text-align: center; }
-        .album-cover { font-size: 40px; background: #282828; border-radius: 6px; padding: 20px 0; margin-bottom: 8px; }
-        .album-info h4 { font-size: 14px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .album-info p { font-size: 12px; color: #b3b3b3; margin-top: 2px; }
-        .album-info .count { font-size: 11px; color: #1db954; margin-top: 4px; display: block; }
-
-        /* Listas */
+        /* 2ª PANTALLA: LISTA DE ÁLBUMES */
         .simple-list { display: flex; flex-direction: column; gap: 8px; }
-        .list-item { display: flex; align-items: center; background: #181818; padding: 10px 12px; border-radius: 6px; }
-        .item-icon { font-size: 20px; margin-right: 12px; color: #1db954; }
-        .item-info h4 { font-size: 14px; color: #fff; }
-        .item-info p { font-size: 12px; color: #b3b3b3; }
+        .list-item { display: flex; align-items: center; background: #181818; padding: 12px 15px; border-radius: 8px; cursor: pointer; }
+        .album-icon { font-size: 24px; color: #1db954; margin-right: 15px; }
+        .album-title { font-size: 16px; font-weight: 500; }
+        .btn-back-footer { background: none; border: none; color: #fff; font-size: 14px; font-weight: bold; display: flex; align-items: center; cursor: pointer; }
 
-        /* Reproductor Flotante */
-        .mini-player { display: flex; align-items: center; justify-content: space-between; background: #282828; padding: 10px 15px; border-top: 1px solid #333; position: sticky; bottom: 0; }
-        .player-info { display: flex; flex-direction: column; max-width: 60%; }
-        .track-title { font-size: 13px; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-artist { font-size: 11px; color: #b3b3b3; }
-        .player-controls { display: flex; gap: 10px; align-items: center; }
-        .btn-player { background: none; border: none; color: #fff; font-size: 18px; padding: 5px; }
-        .btn-main-play { font-size: 22px; color: #1db954; }
+        /* 3ª PANTALLA: LISTA DE CANCIONES */
+        .song-checkbox { width: 18px; height: 18px; border: 2px solid #535353; border-radius: 3px; margin-right: 15px; }
+        .song-title { font-size: 15px; color: #fff; }
+
+        /* 4ª PANTALLA: REPRODUCTOR COMPLETO */
+        #screen-player { padding: 30px; text-align: center; justify-content: space-between; }
+        .big-cover-art { width: 220px; height: 220px; background: #282828; border-radius: 12px; margin: 40px auto; display: flex; align-items: center; justify-content: center; font-size: 100px; color: #1db954; }
+        .track-title { font-size: 22px; font-weight: bold; color: #fff; margin-bottom: 5px; }
+        .track-artist-album { font-size: 14px; color: #b3b3b3; margin-bottom: 25px; }
+        .controls-row { display: flex; gap: 20px; align-items: center; justify-content: center; margin-bottom: 30px; }
+        .btn-player { background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; }
+        .btn-play-pause { font-size: 48px; color: #1db954; }
     </style>
 </head>
 <body>
 
-    <!-- Pantalla de Bienvenida -->
     <div id="screen-welcome" class="screen active">
-        <div class="welcome-card">
+        <div class="welcome-content">
             <div class="app-logo">🎵</div>
-            <h1>Mi Música</h1>
-            <p>Selecciona tu carpeta de música para comenzar a escuchar sin conexión.</p>
-            <button id="btn-select-folder" class="btn-primary">Abrir Mi Música</button>
+            <h1 class="welcome-title">ABRIR MI MÚSICA</h1>
+            <button id="btn-select-folder" class="btn-primary">Aceptar / Comenzar</button>
             <input type="file" id="file-input" webkitdirectory directory multiple style="display: none;">
         </div>
     </div>
 
-    <!-- Pantalla Principal -->
-    <div id="screen-main" class="screen">
-        <header class="app-header">
-            <h2>Mi Música</h2>
-            <button id="btn-change-folder" class="btn-secondary-sm">Cambiar Carpeta</button>
+    <div id="screen-albums" class="screen">
+        <header class="header">
+            <h2>ÁLBUMES</h2>
+            <button id="btn-change-folder-albums" class="btn-change-folder">Cambiar Carpeta</button>
         </header>
-
-        <nav class="tabs-nav">
-            <button class="tab-btn active" data-tab="albums">Álbumes</button>
-            <button class="tab-btn" data-tab="artists">Artistas</button>
-            <button class="tab-btn" data-tab="songs">Canciones</button>
-        </nav>
-
-        <main class="content-area">
-            <section id="tab-albums" class="tab-content active">
-                <div id="albums-grid" class="albums-grid"></div>
-            </section>
-
-            <section id="tab-artists" class="tab-content">
-                <div id="artists-list" class="simple-list"></div>
-            </section>
-
-            <section id="tab-songs" class="tab-content">
-                <div id="songs-list" class="simple-list"></div>
-            </section>
-
-            <section id="view-detail" class="detail-view hidden">
-                <div style="margin-bottom: 15px;">
-                    <button id="btn-back" class="btn-icon">← Volver</button>
-                    <h3 id="detail-title" style="margin-top: 5px; color: #fff;"></h3>
-                </div>
-                <div id="detail-songs-list" class="simple-list"></div>
-            </section>
-        </main>
-
-        <div id="mini-player" class="mini-player hidden">
-            <div class="player-info">
-                <span id="player-title" class="track-title">Ninguna canción</span>
-                <span id="player-artist" class="track-artist">--</span>
+        <div id="albums-list" class="content simple-list">
             </div>
-            <div class="player-controls">
+        <footer class="footer">
+            <button id="btn-back-to-welcome" class="btn-back-footer">◀ ATRÁS MIMUS</button>
+        </footer>
+    </div>
+
+    <div id="screen-songs" class="screen">
+        <header class="header">
+            <h2 id="songs-album-title">CANCIONES</h2>
+        </header>
+        <div id="songs-list" class="content simple-list">
+            </div>
+        <footer class="footer">
+            <button id="btn-back-to-albums" class="btn-back-footer">◀ ATRÁS ALBUMS</button>
+        </footer>
+    </div>
+
+    <div id="screen-player" class="screen">
+        <div class="content">
+            <div class="big-cover-art">🎵</div>
+            <h1 id="player-title" class="track-title">Ninguna canción</h1>
+            <p id="player-artist-album" class="track-artist-album">Artista / Álbum</p>
+            
+            <div class="controls-row">
                 <button id="btn-prev" class="btn-player">⏮</button>
-                <button id="btn-play-pause" class="btn-player btn-main-play">▶</button>
+                <button id="btn-play-pause" class="btn-player btn-play-pause">▶</button>
                 <button id="btn-next" class="btn-player">⏭</button>
             </div>
             <audio id="audio-element"></audio>
         </div>
+        <footer class="footer">
+            <button id="btn-back-to-songs" class="btn-back-footer">◀ ATRÁS CANCIONES</button>
+        </footer>
     </div>
 
     <script src="app.js"></script>
