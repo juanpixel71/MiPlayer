@@ -23,7 +23,6 @@
             position: relative;
         }
 
-        /* ESTRUCTURA DE PANTALLAS SECUENCIALES */
         .screen {
             display: none;
             width: 100%;
@@ -39,7 +38,6 @@
             display: flex;
         }
 
-        /* ESTRUCTURA CABECERA Y PIE DE PÁGINA (BOCETO) */
         .header {
             display: flex;
             align-items: center;
@@ -71,7 +69,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 16px;
-            padding-bottom: 70px; /* Espacio para el pie de página */
+            padding-bottom: 70px;
         }
 
         .footer {
@@ -274,99 +272,43 @@
             color: #000000;
             border-radius: 50%;
             font-size: 28px;
-            padding-left: 3px; /* Óptico para centrar Play */
-        }
-
-        /* Demo helper para ver pantallas en navegador sin JS */
-        .demo-nav {
-            position: fixed;
-            top: 0;
-            right: 0;
-            background: rgba(255,0,0,0.8);
-            z-index: 9999;
-            padding: 4px;
-            display: flex;
-            gap: 4px;
-        }
-        .demo-nav button {
-            font-size: 10px;
-            padding: 2px 4px;
+            padding-left: 3px;
         }
     </style>
 </head>
 <body>
 
-    <div class="demo-nav">
-        <button onclick="showDemo(1)">P1</button>
-        <button onclick="showDemo(2)">P2</button>
-        <button onclick="showDemo(3)">P3</button>
-        <button onclick="showDemo(4)">P4</button>
-    </div>
-
     <div id="screen-welcome" class="screen active">
         <div class="welcome-box">
             <h1 style="font-size: 24px; font-weight: bold;">ABRIR MI MÚSICA</h1>
             <div class="folder-icon-large">📁</div>
-            <button class="btn-main-open">ABRIR CARPETA</button>
+            <button id="btn-select-folder" class="btn-main-open">ABRIR CARPETA</button>
+            <input type="file" id="file-input" webkitdirectory directory multiple style="display: none;">
         </div>
     </div>
 
     <div id="screen-albums" class="screen">
         <header class="header">
             <h2>ALBUMS</h2>
-            <button class="btn-change-folder">Cambiar Carpeta</button>
+            <button id="btn-change-folder" class="btn-change-folder">Cambiar Carpeta</button>
         </header>
         <div class="content">
-            <div class="list-container">
-                <div class="list-item">
-                    <div class="album-cover-placeholder">🎵</div>
-                    <div class="album-text">
-                        <h4>Nombre del Álbum 01</h4>
-                        <p>12 canciones</p>
-                    </div>
-                </div>
-                <div class="list-item">
-                    <div class="album-cover-placeholder">🎵</div>
-                    <div class="album-text">
-                        <h4>Nombre del Álbum 02</h4>
-                        <p>8 canciones</p>
-                    </div>
-                </div>
-            </div>
+            <div id="albums-list" class="list-container"></div>
         </div>
         <footer class="footer">
-            <button class="btn-back-footer">◀ ATRÁS MIMUS</button>
+            <button id="btn-back-to-welcome" class="btn-back-footer">◀ ATRÁS MIMUS</button>
         </footer>
     </div>
 
     <div id="screen-songs" class="screen">
         <header class="header">
-            <h2>CANCIONES</h2>
+            <h2 id="songs-header-title">CANCIONES</h2>
         </header>
         <div class="content">
-            <div class="list-container">
-                <div class="list-item">
-                    <div class="song-checkbox"></div>
-                    <div class="song-text">
-                        <h4>01 - Canción Ejemplo 1</h4>
-                    </div>
-                </div>
-                <div class="list-item">
-                    <div class="song-checkbox"></div>
-                    <div class="song-text">
-                        <h4>02 - Canción Ejemplo 2</h4>
-                    </div>
-                </div>
-                <div class="list-item">
-                    <div class="song-checkbox"></div>
-                    <div class="song-text">
-                        <h4>03 - Canción Ejemplo 3</h4>
-                    </div>
-                </div>
-            </div>
+            <div id="songs-list" class="list-container"></div>
         </div>
         <footer class="footer">
-            <button class="btn-back-footer">◀ ATRÁS ALBUMS</button>
+            <button id="btn-back-to-albums" class="btn-back-footer">◀ ATRÁS ALBUMS</button>
         </footer>
     </div>
 
@@ -377,30 +319,22 @@
             </div>
             
             <div class="player-info-block">
-                <h1 class="player-song-title">01 - CANCIÓN</h1>
-                <p class="player-artist-album">Álbum / Artista</p>
+                <h1 id="player-title" class="player-song-title">Ninguna canción</h1>
+                <p id="player-artist-album" class="player-artist-album">-- / --</p>
             </div>
 
             <div class="player-controls-row">
-                <button class="btn-ctrl">⏮</button>
-                <button class="btn-ctrl btn-ctrl-main">▶</button>
-                <button class="btn-ctrl">⏭</button>
+                <button id="btn-prev" class="btn-ctrl">⏮</button>
+                <button id="btn-play-pause" class="btn-ctrl btn-ctrl-main">▶</button>
+                <button id="btn-next" class="btn-ctrl">⏭</button>
             </div>
+            <audio id="audio-element"></audio>
         </div>
         <footer class="footer">
-            <button class="btn-back-footer">◀ ATRÁS CANCIONES</button>
+            <button id="btn-back-to-songs" class="btn-back-footer">◀ ATRÁS CANCIONES</button>
         </footer>
     </div>
 
-    <script>
-        // Pequeño script solo para que pruebes los botones rojos arriba a la derecha en tu navegador
-        function showDemo(num) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            if(num === 1) document.getElementById('screen-welcome').classList.add('active');
-            if(num === 2) document.getElementById('screen-albums').classList.add('active');
-            if(num === 3) document.getElementById('screen-songs').classList.add('active');
-            if(num === 4) document.getElementById('screen-player').classList.add('active');
-        }
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>
