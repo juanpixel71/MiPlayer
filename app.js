@@ -1,167 +1,246 @@
-// Pantallas
-const screen1 = document.getElementById('screen-1');
-const screen2 = document.getElementById('screen-2');
-const screen3 = document.getElementById('screen-3');
-const screen4 = document.getElementById('screen-4');
+document.addEventListener('DOMContentLoaded', () => {
+    // Elementos del DOM
+    const btnSelectFolder = document.getElementById('btn-select-folder');
+    const btnChangeFolder = document.getElementById('btn-change-folder');
+    const fileInput = document.getElementById('file-input');
+    
+    const screenWelcome = document.getElementById('screen-welcome');
+    const screenMain = document.getElementById('screen-main');
+    
+    const tabs = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    const albumsGrid = document.getElementById('albums-grid');
+    const artistsList = document.getElementById('artists-list');
+    const songsList = document.getElementById('songs-list');
+    
+    const viewDetail = document.getElementById('view-detail');
+    const detailTitle = document.getElementById('detail-title');
+    const detailSongsList = document.getElementById('detail-songs-list');
+    const btnBack = document.getElementById('btn-back');
 
-// Elementos
-const folderInput = document.getElementById('folder-input');
-const albumsList = document.getElementById('albums-list');
-const songsList = document.getElementById('songs-list');
-const screen3Title = document.getElementById('screen-3-title');
+    // Reproductor
+    const miniPlayer = document.getElementById('mini-player');
+    const audioElement = document.getElementById('audio-element');
+    const playerTitle = document.getElementById('player-title');
+    const playerArtist = document.getElementById('player-artist');
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
 
-const audio = document.getElementById('audio-element');
-const playerTitle = document.getElementById('player-title');
-const playerArtist = document.getElementById('player-artist');
-const progressBar = document.getElementById('progress-bar');
-const timeCurrent = document.getElementById('time-current');
-const timeTotal = document.getElementById('time-total');
-const btnPlay = document.getElementById('btn-play');
+    // Estado global
+    let tracks = [];
+    let albumsMap = {};
+    let artistsMap = {};
+    let currentPlaylist = [];
+    let currentIndex = -1;
+    let isPlaying = false;
 
-// Botones Atrás
-document.getElementById('btn-back-mimus').onclick = () => showScreen(screen1);
-document.getElementById('btn-back-albums').onclick = () => showScreen(screen2);
-document.getElementById('btn-back-songs').onclick = () => showScreen(screen3);
+    // --- EVENTOS DE INICIO Y CARPETA ---
+    btnSelectFolder.addEventListener('click', () => fileInput.click());
+    btnChangeFolder.addEventListener('click', () => fileInput.click());
 
-// Datos
-let albumsData = {};
-let currentPlaylist = [];
-let currentIndex = -1;
+    fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files);
+        const audioFiles = files.filter(f => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|ogg|m4a|flac)$/i));
 
-function showScreen(screenToShow) {
-  [screen1, screen2, screen3, screen4].forEach(s => s.classList.add('hidden'));
-  screenToShow.classList.remove('hidden');
-}
+        if (audioFiles.length === 0) {
+            alert('No se encontraron archivos de audio en la carpeta seleccionada.');
+            return;
+        }
 
-// Cargar música desde carpeta
-folderInput.addEventListener('change', (e) => {
-  const files = Array.from(e.target.files);
-  albumsData = {};
+        processAudioFiles(audioFiles);
+        screenWelcome.classList.remove('active');
+        screenMain.classList.add('active');
+    });
 
-  files.forEach(file => {
-    if (file.name.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
-      const parts = file.webkitRelativePath.split('/');
-      let album = parts.length > 2 ? parts[parts.length - 2] : (parts[0] || 'Varios');
-      
-      if (!albumsData[album]) albumsData[album] = [];
-      albumsData[album].push({
-        file: file,
-        name: file.name.replace(/\.[^/.]+$/, "")
-      });
+    // --- PROCESAMIENTO DE ARCHIVOS ---
+    function processAudioFiles(files) {
+        tracks = [];
+        albumsMap = {};
+        artistsMap = {};
+
+        files.forEach((file, index) => {
+            // Extraer la estructura de carpetas (Ejemplo: "NombreArtista/NombreAlbum/Cancion.mp3")
+            const pathParts = (file.webkitRelativePath || file.name).split('/');
+            
+            let albumName = 'Varios / Desconocido';
+            let artistName = 'Artista Desconocido';
+
+            if (pathParts.length >= 3) {
+                artistName = pathParts[pathParts.length - 3];
+                albumName = pathParts[pathParts.length - 2];
+            } else if (pathParts.length === 2) {
+                albumName = pathParts[0];
+            }
+
+            // Limpiar el título de la canción quitando extensión
+            const songTitle = file.name.replace(/\.[^/.]+$/, "");
+
+            const track = {
+                id: index,
+                file: file,
+                title: songTitle,
+                album: albumName,
+                artist: artistName,
+                url: URL.createObjectURL(file)
+            };
+
+            tracks.push(track);
+
+            // Agrupar por Álbum
+            if (!albumsMap[albumName]) albumsMap[albumName] = [];
+            albumsMap[albumName].push(track);
+
+            // Agrupar por Artista
+            if (!artistsMap[artistName]) artistsMap[artistName] = [];
+            artistsMap[artistName].push(track);
+        });
+
+        renderAlbums();
+        renderArtists();
+        renderSongs();
     }
-  });
 
-  if (Object.keys(albumsData).length > 0) {
-    renderAlbums();
-    showScreen(screen2);
-  }
+    // --- RENDERIZADO DE INTERFAZ ---
+    function renderAlbums() {
+        albumsGrid.innerHTML = '';
+        Object.keys(albumsMap).forEach(albumName => {
+            const albumTracks = albumsMap[albumName];
+            const card = document.createElement('div');
+            card.className = 'album-card';
+            card.innerHTML = `
+                <div class="album-cover">🎵</div>
+                <div class="album-info">
+                    <h4>${albumName}</h4>
+                    <p>${albumTracks[0].artist}</p>
+                    <span class="count">${albumTracks.length} canciones</span>
+                </div>
+            `;
+            card.addEventListener('click', () => showDetailView(albumName, albumTracks));
+            albumsGrid.appendChild(card);
+        });
+    }
+
+    function renderArtists() {
+        artistsList.innerHTML = '';
+        Object.keys(artistsMap).forEach(artistName => {
+            const artistTracks = artistsMap[artistName];
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+                <div class="item-icon">👤</div>
+                <div class="item-info">
+                    <h4>${artistName}</h4>
+                    <p>${artistTracks.length} canciones</p>
+                </div>
+            `;
+            item.addEventListener('click', () => showDetailView(artistName, artistTracks));
+            artistsList.appendChild(item);
+        });
+    }
+
+    function renderSongs() {
+        songsList.innerHTML = '';
+        tracks.forEach(track => {
+            const item = createSongListItem(track, tracks);
+            songsList.appendChild(item);
+        });
+    }
+
+    function createSongListItem(track, playlistContext) {
+        const item = document.createElement('div');
+        item.className = 'list-item song-item';
+        item.innerHTML = `
+            <div class="item-icon">▶</div>
+            <div class="item-info">
+                <h4>${track.title}</h4>
+                <p>${track.artist} - ${track.album}</p>
+            </div>
+        `;
+        item.addEventListener('click', () => {
+            playTrack(track, playlistContext);
+        });
+        return item;
+    }
+
+    // --- VISTA DETALLE ---
+    function showDetailView(title, trackList) {
+        detailTitle.textContent = title;
+        detailSongsList.innerHTML = '';
+        trackList.forEach(track => {
+            const item = createSongListItem(track, trackList);
+            detailSongsList.appendChild(item);
+        });
+
+        // Ocultar pestañas y mostrar vista detalle
+        tabContents.forEach(c => c.classList.remove('active'));
+        viewDetail.classList.remove('hidden');
+    }
+
+    btnBack.addEventListener('click', () => {
+        viewDetail.classList.add('hidden');
+        // Volver a la pestaña activa
+        const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+        document.getElementById(`tab-${activeTab}`).classList.add('active');
+    });
+
+    // --- NAVEGACIÓN POR PESTAÑAS ---
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            viewDetail.classList.add('hidden');
+
+            tab.classList.add('active');
+            const tabId = `tab-${tab.dataset.tab}`;
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+
+    // --- REPRODUCTOR DE AUDIO ---
+    function playTrack(track, playlist) {
+        currentPlaylist = playlist;
+        currentIndex = currentPlaylist.findIndex(t => t.id === track.id);
+
+        audioElement.src = track.url;
+        audioElement.play();
+        isPlaying = true;
+
+        playerTitle.textContent = track.title;
+        playerArtist.textContent = track.artist;
+        btnPlayPause.textContent = '⏸';
+
+        miniPlayer.classList.remove('hidden');
+    }
+
+    btnPlayPause.addEventListener('click', () => {
+        if (!audioElement.src) return;
+
+        if (isPlaying) {
+            audioElement.pause();
+            btnPlayPause.textContent = '▶';
+            isPlaying = false;
+        } else {
+            audioElement.play();
+            btnPlayPause.textContent = '⏸';
+            isPlaying = true;
+        }
+    });
+
+    btnNext.addEventListener('click', () => {
+        if (currentPlaylist.length === 0 || currentIndex === -1) return;
+        currentIndex = (currentIndex + 1) % currentPlaylist.length;
+        playTrack(currentPlaylist[currentIndex], currentPlaylist);
+    });
+
+    btnPrev.addEventListener('click', () => {
+        if (currentPlaylist.length === 0 || currentIndex === -1) return;
+        currentIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+        playTrack(currentPlaylist[currentIndex], currentPlaylist);
+    });
+
+    audioElement.addEventListener('ended', () => {
+        btnNext.click();
+    });
 });
-
-// Renderizar 2ª Pantalla (Álbumes)
-function renderAlbums() {
-  albumsList.innerHTML = '';
-  Object.keys(albumsData).forEach(albumName => {
-    const row = document.createElement('div');
-    row.className = 'item-row';
-    row.innerHTML = `
-      <div class="item-thumb">📁</div>
-      <div class="item-text">
-        <div class="item-title">${albumName}</div>
-        <div class="item-sub">${albumsData[albumName].length} canciones</div>
-      </div>
-    `;
-    row.onclick = () => renderSongs(albumName);
-    albumsList.appendChild(row);
-  });
-}
-
-// Renderizar 3ª Pantalla (Canciones)
-function renderSongs(albumName) {
-  screen3Title.textContent = albumName;
-  songsList.innerHTML = '';
-  currentPlaylist = albumsData[albumName];
-
-  currentPlaylist.forEach((song, idx) => {
-    const num = (idx + 1).toString().padStart(2, '0');
-    const row = document.createElement('div');
-    row.className = 'item-row';
-    row.innerHTML = `
-      <div class="item-thumb">${num}</div>
-      <div class="item-text">
-        <div class="item-title">${song.name}</div>
-        <div class="item-sub">${albumName}</div>
-      </div>
-    `;
-    row.onclick = () => playTrack(idx, albumName);
-    songsList.appendChild(row);
-  });
-
-  showScreen(screen3);
-}
-
-// 4ª Pantalla (Reproductor)
-function playTrack(idx, albumName) {
-  currentIndex = idx;
-  const song = currentPlaylist[currentIndex];
-  const num = (currentIndex + 1).toString().padStart(2, '0');
-
-  audio.src = URL.createObjectURL(song.file);
-  audio.play();
-
-  playerTitle.textContent = `${num} - ${song.name}`;
-  playerArtist.textContent = albumName;
-  btnPlay.textContent = '⏸';
-
-  showScreen(screen4);
-}
-
-// Controles Reproductor
-btnPlay.onclick = () => {
-  if (!audio.src) return;
-  if (audio.paused) {
-    audio.play();
-    btnPlay.textContent = '⏸';
-  } else {
-    audio.pause();
-    btnPlay.textContent = '▶';
-  }
-};
-
-document.getElementById('btn-next').onclick = () => {
-  if (currentIndex + 1 < currentPlaylist.length) {
-    playTrack(currentIndex + 1, playerArtist.textContent);
-  }
-};
-
-document.getElementById('btn-prev').onclick = () => {
-  if (currentIndex - 1 >= 0) {
-    playTrack(currentIndex - 1, playerArtist.textContent);
-  }
-};
-
-audio.onended = () => {
-  if (currentIndex + 1 < currentPlaylist.length) {
-    playTrack(currentIndex + 1, playerArtist.textContent);
-  }
-};
-
-audio.ontimeupdate = () => {
-  if (audio.duration) {
-    progressBar.value = (audio.currentTime / audio.duration) * 100;
-    timeCurrent.textContent = formatTime(audio.currentTime);
-    timeTotal.textContent = formatTime(audio.duration);
-  }
-};
-
-progressBar.oninput = () => {
-  if (audio.duration) {
-    audio.currentTime = (progressBar.value / 100) * audio.duration;
-  }
-};
-
-function formatTime(sec) {
-  if (isNaN(sec)) return "0:00";
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${s < 10 ? '0' : ''}${s}`;
-}
