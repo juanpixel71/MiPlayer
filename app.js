@@ -1,70 +1,94 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Elementos del DOM
-    const btnSelectFolder = document.getElementById('btn-select-folder');
-    const btnChangeFolder = document.getElementById('btn-change-folder');
+    // --- ELEMENTOS DEL DOM ---
     const fileInput = document.getElementById('file-input');
-    
-    const screenWelcome = document.getElementById('screen-welcome');
-    const screenMain = document.getElementById('screen-main');
-    
-    const tabs = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
-    
-    const albumsGrid = document.getElementById('albums-grid');
-    const artistsList = document.getElementById('artists-list');
+    const btnSelectFolder = document.getElementById('btn-select-folder');
+    const btnChangeFolderAlbums = document.getElementById('btn-change-folder-albums');
+
+    // Pantallas
+    const screens = {
+        welcome: document.getElementById('screen-welcome'),
+        albums: document.getElementById('screen-albums'),
+        songs: document.getElementById('screen-songs'),
+        player: document.getElementById('screen-player')
+    };
+
+    // Listas y Contenido
+    const albumsList = document.getElementById('albums-list');
     const songsList = document.getElementById('songs-list');
-    
-    const viewDetail = document.getElementById('view-detail');
-    const detailTitle = document.getElementById('detail-title');
-    const detailSongsList = document.getElementById('detail-songs-list');
-    const btnBack = document.getElementById('btn-back');
+    const songsAlbumTitle = document.getElementById('songs-album-title');
 
     // Reproductor
-    const miniPlayer = document.getElementById('mini-player');
-    const audioElement = document.getElementById('audio-element');
     const playerTitle = document.getElementById('player-title');
-    const playerArtist = document.getElementById('player-artist');
+    const playerArtistAlbum = document.getElementById('player-artist-album');
+    const audioElement = document.getElementById('audio-element');
     const btnPlayPause = document.getElementById('btn-play-pause');
     const btnPrev = document.getElementById('btn-prev');
     const btnNext = document.getElementById('btn-next');
 
-    // Estado global
-    let tracks = [];
+    // Botones ATRÁS
+    const btnBackToWelcome = document.getElementById('btn-back-to-welcome');
+    const btnBackToAlbums = document.getElementById('btn-back-to-albums');
+    const btnBackToSongs = document.getElementById('btn-back-to-songs');
+
+    // --- ESTADO GLOBAL ---
     let albumsMap = {};
-    let artistsMap = {};
     let currentPlaylist = [];
     let currentIndex = -1;
     let isPlaying = false;
 
-    // --- EVENTOS DE INICIO Y CARPETA ---
+    // --- NAVEGACIÓN ---
+    function showScreen(screenId) {
+        // Ocultar todas las pantallas
+        Object.values(screens).forEach(screen => screen.classList.remove('active'));
+        // Mostrar la solicitada
+        if (screens[screenId]) {
+            screens[screenId].classList.add('active');
+        } else {
+            console.error('Error: Pantalla no encontrada:', screenId);
+        }
+    }
+
+    // --- BOTONES ATRÁS ESPECÍFICOS DEL PAPEL ---
+    btnBackToWelcome.addEventListener('click', () => {
+        albumsList.innerHTML = '';
+        showScreen('welcome');
+    });
+
+    btnBackToAlbums.addEventListener('click', () => {
+        renderAlbums();
+        showScreen('albums');
+    });
+
+    btnBackToSongs.addEventListener('click', () => {
+        // Al volver, mostramos la lista de canciones actual
+        songsList.innerHTML = '';
+        renderSongs(currentPlaylist[0].album, currentPlaylist);
+        showScreen('songs');
+    });
+
+    // --- SELECCIÓN DE CARPETA Y PROCESAMIENTO ---
     btnSelectFolder.addEventListener('click', () => fileInput.click());
-    btnChangeFolder.addEventListener('click', () => fileInput.click());
+    btnChangeFolderAlbums.addEventListener('click', () => fileInput.click());
 
     fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
-        const audioFiles = files.filter(f => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|ogg|m4a|flac)$/i));
+        const audioFiles = files.filter(f => f.name.match(/\.(mp3|wav|ogg|m4a|flac)$/i));
 
         if (audioFiles.length === 0) {
-            alert('No se encontraron archivos de audio en la carpeta seleccionada.');
+            alert('No se encontraron archivos de audio.');
             return;
         }
 
         processAudioFiles(audioFiles);
-        screenWelcome.classList.remove('active');
-        screenMain.classList.add('active');
+        showScreen('albums');
     });
 
-    // --- PROCESAMIENTO DE ARCHIVOS ---
     function processAudioFiles(files) {
-        tracks = [];
         albumsMap = {};
-        artistsMap = {};
-
         files.forEach((file, index) => {
-            // Extraer la estructura de carpetas (Ejemplo: "NombreArtista/NombreAlbum/Cancion.mp3")
             const pathParts = (file.webkitRelativePath || file.name).split('/');
             
-            let albumName = 'Varios / Desconocido';
+            let albumName = 'Carpeta Única';
             let artistName = 'Artista Desconocido';
 
             if (pathParts.length >= 3) {
@@ -74,131 +98,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 albumName = pathParts[0];
             }
 
-            // Limpiar el título de la canción quitando extensión
-            const songTitle = file.name.replace(/\.[^/.]+$/, "");
-
             const track = {
                 id: index,
-                file: file,
-                title: songTitle,
+                title: file.name.replace(/\.[^/.]+$/, ""),
                 album: albumName,
                 artist: artistName,
                 url: URL.createObjectURL(file)
             };
 
-            tracks.push(track);
-
-            // Agrupar por Álbum
             if (!albumsMap[albumName]) albumsMap[albumName] = [];
             albumsMap[albumName].push(track);
-
-            // Agrupar por Artista
-            if (!artistsMap[artistName]) artistsMap[artistName] = [];
-            artistsMap[artistName].push(track);
         });
-
         renderAlbums();
-        renderArtists();
-        renderSongs();
     }
 
-    // --- RENDERIZADO DE INTERFAZ ---
+    // --- PANTALLA 2º: RENDER ÁLBUMES ---
     function renderAlbums() {
-        albumsGrid.innerHTML = '';
+        albumsList.innerHTML = '';
         Object.keys(albumsMap).forEach(albumName => {
             const albumTracks = albumsMap[albumName];
-            const card = document.createElement('div');
-            card.className = 'album-card';
-            card.innerHTML = `
-                <div class="album-cover">🎵</div>
-                <div class="album-info">
-                    <h4>${albumName}</h4>
-                    <p>${albumTracks[0].artist}</p>
-                    <span class="count">${albumTracks.length} canciones</span>
-                </div>
-            `;
-            card.addEventListener('click', () => showDetailView(albumName, albumTracks));
-            albumsGrid.appendChild(card);
-        });
-    }
-
-    function renderArtists() {
-        artistsList.innerHTML = '';
-        Object.keys(artistsMap).forEach(artistName => {
-            const artistTracks = artistsMap[artistName];
             const item = document.createElement('div');
             item.className = 'list-item';
             item.innerHTML = `
-                <div class="item-icon">👤</div>
-                <div class="item-info">
-                    <h4>${artistName}</h4>
-                    <p>${artistTracks.length} canciones</p>
+                <div class="album-icon">🎵</div>
+                <div class="album-info">
+                    <h4 class="album-title">${albumName}</h4>
+                    <p>${albumTracks.length} canciones</p>
                 </div>
             `;
-            item.addEventListener('click', () => showDetailView(artistName, artistTracks));
-            artistsList.appendChild(item);
+            item.addEventListener('click', () => {
+                songsAlbumTitle.textContent = albumName;
+                renderSongs(albumName, albumTracks);
+                showScreen('songs');
+            });
+            albumsList.appendChild(item);
         });
     }
 
-    function renderSongs() {
+    // --- PANTALLA 3º: RENDER CANCIONES (DENTRO DE ÁLBUM) ---
+    function renderSongs(albumName, tracksInAlbum) {
         songsList.innerHTML = '';
-        tracks.forEach(track => {
-            const item = createSongListItem(track, tracks);
+        tracksInAlbum.forEach(track => {
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+                <div class="song-checkbox"></div>
+                <h4 class="song-title">${track.title}</h4>
+            `;
+            item.addEventListener('click', () => {
+                playTrack(track, tracksInAlbum);
+                showScreen('player');
+            });
             songsList.appendChild(item);
         });
     }
 
-    function createSongListItem(track, playlistContext) {
-        const item = document.createElement('div');
-        item.className = 'list-item song-item';
-        item.innerHTML = `
-            <div class="item-icon">▶</div>
-            <div class="item-info">
-                <h4>${track.title}</h4>
-                <p>${track.artist} - ${track.album}</p>
-            </div>
-        `;
-        item.addEventListener('click', () => {
-            playTrack(track, playlistContext);
-        });
-        return item;
-    }
-
-    // --- VISTA DETALLE ---
-    function showDetailView(title, trackList) {
-        detailTitle.textContent = title;
-        detailSongsList.innerHTML = '';
-        trackList.forEach(track => {
-            const item = createSongListItem(track, trackList);
-            detailSongsList.appendChild(item);
-        });
-
-        // Ocultar pestañas y mostrar vista detalle
-        tabContents.forEach(c => c.classList.remove('active'));
-        viewDetail.classList.remove('hidden');
-    }
-
-    btnBack.addEventListener('click', () => {
-        viewDetail.classList.add('hidden');
-        // Volver a la pestaña activa
-        const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
-        document.getElementById(`tab-${activeTab}`).classList.add('active');
-    });
-
-    // --- NAVEGACIÓN POR PESTAÑAS ---
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
-            viewDetail.classList.add('hidden');
-
-            tab.classList.add('active');
-            const tabId = `tab-${tab.dataset.tab}`;
-            document.getElementById(tabId).classList.add('active');
-        });
-    });
-
-    // --- REPRODUCTOR DE AUDIO ---
+    // --- PANTALLA 4º: PANTALLA CANCIONES (REPRODUCTOR COMPLETO) ---
     function playTrack(track, playlist) {
         currentPlaylist = playlist;
         currentIndex = currentPlaylist.findIndex(t => t.id === track.id);
@@ -208,15 +163,12 @@ document.addEventListener('DOMContentLoaded', () => {
         isPlaying = true;
 
         playerTitle.textContent = track.title;
-        playerArtist.textContent = track.artist;
+        playerArtistAlbum.textContent = `${track.artist} / ${track.album}`;
         btnPlayPause.textContent = '⏸';
-
-        miniPlayer.classList.remove('hidden');
     }
 
     btnPlayPause.addEventListener('click', () => {
         if (!audioElement.src) return;
-
         if (isPlaying) {
             audioElement.pause();
             btnPlayPause.textContent = '▶';
