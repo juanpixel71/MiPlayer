@@ -46,80 +46,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initApp() {
         if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
-            await readAbsolutePathWithDebug();
+            await readAbsolutePath();
         } else {
             renderDemoData();
         }
     }
 
-    // Extraer el nombre probando todas las estructuras posibles de Capacitor
+    // Extraer el nombre visible del álbum o canción
     function parseItemName(item) {
         if (!item) return '';
-        if (typeof item === 'string') return item;
+        if (typeof item === 'string') return decodeURIComponent(item);
         if (item.name) return item.name;
-        if (item.uri) {
-            const parts = item.uri.split('/');
+        if (item.uri || item.path) {
+            const rawPath = item.uri || item.path;
+            const decoded = decodeURIComponent(rawPath);
+            const parts = decoded.split('/');
             return parts[parts.length - 1] || parts[parts.length - 2];
         }
-        if (item.path) {
-            const parts = item.path.split('/');
-            return parts[parts.length - 1] || parts[parts.length - 2];
-        }
-        return JSON.stringify(item);
+        return '';
     }
 
-    async function readAbsolutePathWithDebug() {
-        const debugLog = [];
-        const log = (msg) => debugLog.push(msg);
-
+    // Lectura nativa directa usando URI de Android
+    async function readAbsolutePath() {
         try {
             const { Filesystem } = window.Capacitor.Plugins;
 
             try {
                 await Filesystem.requestPermissions();
             } catch (e) {
-                log('Warn permisos: ' + e.message);
+                console.log('Permisos solicitados');
             }
 
             albumsMap = {};
             let globalIdx = 0;
 
-            log(`1. Leyendo carpeta: ${TARGET_PATH}`);
-            const rootDir = await Filesystem.readdir({ path: TARGET_PATH }).catch(err => {
-                log(`Error readdir raíz: ${err.message}`);
-                return null;
-            });
+            // 1. Leer la carpeta principal /storage/emulated/0/MiMusica
+            const rootDir = await Filesystem.readdir({ path: TARGET_PATH }).catch(() => null);
 
-            if (!rootDir || !rootDir.files) {
-                log('Error: rootDir o rootDir.files es null/undefined');
-                showDebugScreen(albumsList, debugLog);
+            if (!rootDir || !rootDir.files || rootDir.files.length === 0) {
+                albumsList.innerHTML = `
+                    <div style="padding: 30px 20px; text-align: center;">
+                        <p style="color: #ffffff; font-weight: bold;">No se encontró la carpeta MiMusica</p>
+                        <p style="color: #a0a0a0; font-size: 14px;">Asegúrate de tener la carpeta /storage/emulated/0/MiMusica en tu memoria interna.</p>
+                    </div>`;
                 return;
             }
 
-            log(`2. Elementos en MiMusica: ${rootDir.files.length}`);
-
-            for (let i = 0; i < rootDir.files.length; i++) {
-                const rawItem = rootDir.files[i];
-                const folderName = parseItemName(rawItem);
-                
-                log(`- Item [${i}]: type=${typeof rawItem}, parsedName="${folderName}"`);
-                log(`  Raw: ${JSON.stringify(rawItem)}`);
-
+            // 2. Recorrer cada subcarpeta (Álbum) usando su URI nativa
+            for (const item of rootDir.files) {
+                const folderName = parseItemName(item);
                 if (!folderName) continue;
 
-                // Construcción de la ruta a la subcarpeta
-                const subFolderPath = `${TARGET_PATH}/${folderName}`;
-                
-                try {
-                    const subDir = await Filesystem.readdir({ path: subFolderPath });
-                    log(`  -> Leída subcarpeta. Archivos en su interior: ${subDir && subDir.files ? subDir.files.length : 0}`);
+                // Usamos la URI directa o la ruta limpia decodificada
+                const subPath = (typeof item === 'object' && item.uri) ? item.uri : `${TARGET_PATH}/${folderName}`;
 
-                    if (subDir && subDir.files) {
+                try {
+                    const subDir = await Filesystem.readdir({ path: subPath });
+
+                    if (subDir && subDir.files && subDir.files.length > 0) {
                         subDir.files.forEach(fileInfo => {
                             const fileName = parseItemName(fileInfo);
-                            log(`     * Archivo detectado: "${fileName}"`);
                             if (fileName && fileName.match(AUDIO_EXTENSIONS)) {
-                                const filePath = `${subFolderPath}/${fileName}`;
+                                // Obtener URI o ruta del archivo de audio
+                                const filePath = (typeof fileInfo === 'object' && fileInfo.uri) 
+                                    ? fileInfo.uri 
+                                    : `${TARGET_PATH}/${folderName}/${fileName}`;
+
                                 const track = {
                                     id: globalIdx++,
                                     title: fileName.replace(/\.[^/.]+$/, ""),
@@ -133,34 +125,25 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                 } catch (subErr) {
-                    log(`  -> Error leyendo subcarpeta (${subFolderPath}): ${subErr.message}`);
+                    console.log('Error leyendo subcarpeta:', subErr);
                 }
             }
 
-            const foundAlbums = Object.keys(albumsMap);
-            log(`3. Total Álbumes válidos procesados: ${foundAlbums.length}`);
-
-            if (foundAlbums.length === 0) {
-                showDebugScreen(albumsList, debugLog);
-            } else {
-                renderAlbums();
+            if (Object.keys(albumsMap).length === 0) {
+                albumsList.innerHTML = `
+                    <div style="padding: 30px 20px; text-align: center;">
+                        <p style="color: #ffffff; font-weight: bold;">Sin canciones de audio</p>
+                        <p style="color: #a0a0a0; font-size: 14px;">No se encontraron canciones dentro de las carpetas de tus álbumes.</p>
+                    </div>`;
+                return;
             }
 
-        } catch (err) {
-            log(`CRITICAL ERR: ${err.message}`);
-            showDebugScreen(albumsList, debugLog);
-        }
-    }
+            renderAlbums();
 
-    // Mostrar el informe de diagnóstico directamente en la pantalla del móvil
-    function showDebugScreen(container, logs) {
-        container.innerHTML = `
-            <div style="padding: 15px; background: #121212; color: #00ff66; font-family: monospace; font-size: 11px; text-align: left; word-break: break-all; line-height: 1.4;">
-                <h3 style="color: #ffffff; margin-top: 0; font-size: 14px;">🔍 INFORME DE DIAGNÓSTICO</h3>
-                <hr style="border-color: #333;">
-                ${logs.map(l => `<p style="margin: 4px 0;">${l}</p>`).join('')}
-            </div>
-        `;
+        } catch (err) {
+            console.error('Error general:', err);
+            renderDemoData();
+        }
     }
 
     function renderDemoData() {
@@ -172,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAlbums();
     }
 
+    // PANTALLA 1: Lista de Álbumes
     function renderAlbums() {
         albumsList.innerHTML = '';
         const albumKeys = Object.keys(albumsMap);
@@ -196,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // PANTALLA 2: Lista de Canciones
     function renderSongs(tracks) {
         songsList.innerHTML = '';
         tracks.forEach(track => {
@@ -214,6 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // PANTALLA 3: Reproductor
     function playTrack(track, playlist) {
         currentPlaylist = playlist;
         currentIndex = currentPlaylist.findIndex(t => t.id === track.id);
@@ -223,13 +209,14 @@ document.addEventListener('DOMContentLoaded', () => {
             audioElement.play().then(() => {
                 isPlaying = true;
                 btnPlayPause.textContent = '⏸';
-            }).catch(e => console.log('Error de reproducción:', e));
+            }).catch(e => console.log('Error al reproducir:', e));
         }
 
         playerTitle.textContent = track.title;
         playerArtistAlbum.textContent = track.folder;
     }
 
+    // Controles del reproductor
     btnPlayPause.addEventListener('click', () => {
         if (!audioElement.src) return;
         if (isPlaying) {
