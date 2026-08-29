@@ -21,12 +21,26 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Crear proyecto Capacitor y Compilar
+      - name: Preparar proyecto y compilar APK
         run: |
+          # 1. Crear carpeta www y copiar archivos web
+          mkdir -p www
+          cp index.html style.css app.js manifest.json www/ 2>/dev/null || true
+
+          # 2. Inicializar NPM y Capacitor
           npm init -y
-          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
-          npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir .
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir www
+
+          # 3. Añadir plataforma Android
           npx cap add android
+
+          # 4. Inyectar permisos de lectura de audio/almacenamiento en AndroidManifest.xml
+          MANIFEST_FILE="android/app/src/main/AndroidManifest.xml"
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" \/>' $MANIFEST_FILE
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" \/>' $MANIFEST_FILE
+
+          # 5. Sincronizar y Compilar APK
           npx cap copy android
           cd android
           chmod +x gradlew
