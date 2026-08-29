@@ -1,0 +1,42 @@
+name: Generar APK Reproductor
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v3
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Instalar Capacitor
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "Mi Musica" "com.juanpixel.mimúsica" --web-dir .
+          npx cap add android
+
+      - name: Configurar Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Compilar APK de Android
+        run: |
+          npx cap copy android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Subir APK como artefacto
+        uses: actions/upload-artifact@v3
+        with:
+          name: MiMusica-App-Nativa
+          path: android/app/build/outputs/apk/debug/app-debug.apk
