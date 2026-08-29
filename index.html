@@ -258,13 +258,7 @@
 </head>
 <body>
 
-    <!-- BOTONES ROJOS DE PRUEBA TEMPORALES -->
-    <div class="demo-nav">
-        <button onclick="showDemo(1)">P1</button>
-        <button onclick="showDemo(2)">P2</button>
-        <button onclick="showDemo(3)">P3</button>
-    </div>
-
+    
     <!-- 1ª PANTALLA: ÁLBUMES (HOME) -->
     <div id="screen-albums" class="screen active">
         <header class="header">
@@ -343,14 +337,6 @@
         </footer>
     </div>
 
-    <script>
-        // Script de prueba para cambiar entre las 3 pantallas en tu navegador
-        function showDemo(num) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            if(num === 1) document.getElementById('screen-albums').classList.add('active');
-            if(num === 2) document.getElementById('screen-songs').classList.add('active');
-            if(num === 3) document.getElementById('screen-player').classList.add('active');
-        }
-    </script>
+    
 </body>
 </html>
