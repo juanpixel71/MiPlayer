@@ -27,7 +27,7 @@ jobs:
           cp index.html style.css app.js manifest.json www/ 2>/dev/null || true
           npm init -y
           npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
-          npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir www --no-interaction
+          npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir www
           npx cap add android
           npx cap copy android
           cd android
