@@ -5,99 +5,402 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mi Música</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; user-select: none; }
-        body { background-color: #121212; color: #ffffff; height: 100vh; overflow: hidden; }
-        .screen { display: none; width: 100%; height: 100%; flex-direction: column; position: absolute; top: 0; left: 0; }
-        .screen.active { display: flex; }
-        
-        /* CABECERAS Y BARRAS INFERIORES */
-        .header { display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #181818; border-bottom: 1px solid #282828; }
-        .footer { display: flex; align-items: center; justify-content: center; padding: 12px; background: #181818; border-top: 1px solid #282828; position: absolute; bottom: 0; width: 100%; }
-        
-        /* CONTENIDO PRINCIPAL */
-        .content { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 80px; }
-        .btn-change-folder { background: #333; color: #fff; border: none; padding: 6px 12px; font-size: 12px; border-radius: 15px; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ESTRUCTURA DE PANTALLAS SECUENCIALES */
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: #121212;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* ESTRUCTURA CABECERA Y PIE DE PÁGINA (BOCETO) */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background-color: #181818;
+            border-bottom: 1px solid #282828;
+            height: 60px;
+        }
+
+        .header h2 {
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            color: #ffffff;
+        }
+
+        .btn-change-folder {
+            background: #282828;
+            color: #e0e0e0;
+            border: 1px solid #404040;
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-bottom: 70px; /* Espacio para el pie de página */
+        }
+
+        .footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 16px;
+            background-color: #181818;
+            border-top: 1px solid #282828;
+            height: 56px;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .btn-back-footer {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+        }
 
         /* 1ª PANTALLA: ABRIR MI MÚSICA */
-        #screen-welcome { justify-content: center; align-items: center; padding: 20px; text-align: center; background: linear-gradient(180deg, #1e1e1e 0%, #121212 100%); }
-        .app-logo { font-size: 80px; color: #1db954; margin-bottom: 20px; }
-        .welcome-title { font-size: 28px; margin-bottom: 30px; font-weight: bold; }
-        .btn-primary { background: #1db954; color: #fff; border: none; padding: 16px 32px; font-size: 18px; font-weight: bold; border-radius: 30px; cursor: pointer; }
-        .btn-primary:active { transform: scale(0.98); }
+        #screen-welcome {
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            text-align: center;
+            background: linear-gradient(180deg, #1f1f1f 0%, #121212 100%);
+        }
 
-        /* 2ª PANTALLA: LISTA DE ÁLBUMES */
-        .simple-list { display: flex; flex-direction: column; gap: 8px; }
-        .list-item { display: flex; align-items: center; background: #181818; padding: 12px 15px; border-radius: 8px; cursor: pointer; }
-        .album-icon { font-size: 24px; color: #1db954; margin-right: 15px; }
-        .album-title { font-size: 16px; font-weight: 500; }
-        .btn-back-footer { background: none; border: none; color: #fff; font-size: 14px; font-weight: bold; display: flex; align-items: center; cursor: pointer; }
+        .welcome-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+            max-width: 320px;
+        }
 
-        /* 3ª PANTALLA: LISTA DE CANCIONES */
-        .song-checkbox { width: 18px; height: 18px; border: 2px solid #535353; border-radius: 3px; margin-right: 15px; }
-        .song-title { font-size: 15px; color: #fff; }
+        .folder-icon-large {
+            font-size: 90px;
+            line-height: 1;
+            margin-bottom: 10px;
+        }
+
+        .btn-main-open {
+            background-color: #ffffff;
+            color: #000000;
+            border: none;
+            padding: 18px 32px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 12px;
+            width: 100%;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        /* LISTAS (2ª Y 3ª PANTALLA) */
+        .list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            background-color: #181818;
+            padding: 14px 16px;
+            border-radius: 8px;
+            border: 1px solid #242424;
+            cursor: pointer;
+        }
+
+        .list-item:active {
+            background-color: #282828;
+        }
+
+        /* 2ª PANTALLA: ÁLBUMES */
+        .album-cover-placeholder {
+            width: 48px;
+            height: 48px;
+            background-color: #282828;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-right: 16px;
+            border: 1px solid #383838;
+        }
+
+        .album-text h4 {
+            font-size: 16px;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .album-text p {
+            font-size: 13px;
+            color: #a0a0a0;
+            margin-top: 2px;
+        }
+
+        /* 3ª PANTALLA: CANCIONES */
+        .song-checkbox {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #555555;
+            border-radius: 4px;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+
+        .song-text h4 {
+            font-size: 15px;
+            color: #ffffff;
+            font-weight: 500;
+        }
 
         /* 4ª PANTALLA: REPRODUCTOR COMPLETO */
-        #screen-player { padding: 30px; text-align: center; justify-content: space-between; }
-        .big-cover-art { width: 220px; height: 220px; background: #282828; border-radius: 12px; margin: 40px auto; display: flex; align-items: center; justify-content: center; font-size: 100px; color: #1db954; }
-        .track-title { font-size: 22px; font-weight: bold; color: #fff; margin-bottom: 5px; }
-        .track-artist-album { font-size: 14px; color: #b3b3b3; margin-bottom: 25px; }
-        .controls-row { display: flex; gap: 20px; align-items: center; justify-content: center; margin-bottom: 30px; }
-        .btn-player { background: none; border: none; color: #fff; font-size: 28px; cursor: pointer; }
-        .btn-play-pause { font-size: 48px; color: #1db954; }
+        #screen-player .content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            padding: 24px 16px 80px 16px;
+            text-align: center;
+        }
+
+        .player-cover-container {
+            width: 240px;
+            height: 240px;
+            background-color: #181818;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #282828;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            margin-top: 10px;
+        }
+
+        .player-cover-icon {
+            font-size: 100px;
+        }
+
+        .player-info-block {
+            margin: 20px 0;
+            width: 100%;
+        }
+
+        .player-song-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .player-artist-album {
+            font-size: 15px;
+            color: #b0b0b0;
+        }
+
+        .player-controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-ctrl {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 32px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-ctrl-main {
+            width: 64px;
+            height: 64px;
+            background-color: #ffffff;
+            color: #000000;
+            border-radius: 50%;
+            font-size: 28px;
+            padding-left: 3px; /* Óptico para centrar Play */
+        }
+
+        /* Demo helper para ver pantallas en navegador sin JS */
+        .demo-nav {
+            position: fixed;
+            top: 0;
+            right: 0;
+            background: rgba(255,0,0,0.8);
+            z-index: 9999;
+            padding: 4px;
+            display: flex;
+            gap: 4px;
+        }
+        .demo-nav button {
+            font-size: 10px;
+            padding: 2px 4px;
+        }
     </style>
 </head>
 <body>
 
+    <div class="demo-nav">
+        <button onclick="showDemo(1)">P1</button>
+        <button onclick="showDemo(2)">P2</button>
+        <button onclick="showDemo(3)">P3</button>
+        <button onclick="showDemo(4)">P4</button>
+    </div>
+
     <div id="screen-welcome" class="screen active">
-        <div class="welcome-content">
-            <div class="app-logo">🎵</div>
-            <h1 class="welcome-title">ABRIR MI MÚSICA</h1>
-            <button id="btn-select-folder" class="btn-primary">Aceptar / Comenzar</button>
-            <input type="file" id="file-input" webkitdirectory directory multiple style="display: none;">
+        <div class="welcome-box">
+            <h1 style="font-size: 24px; font-weight: bold;">ABRIR MI MÚSICA</h1>
+            <div class="folder-icon-large">📁</div>
+            <button class="btn-main-open">ABRIR CARPETA</button>
         </div>
     </div>
 
     <div id="screen-albums" class="screen">
         <header class="header">
-            <h2>ÁLBUMES</h2>
-            <button id="btn-change-folder-albums" class="btn-change-folder">Cambiar Carpeta</button>
+            <h2>ALBUMS</h2>
+            <button class="btn-change-folder">Cambiar Carpeta</button>
         </header>
-        <div id="albums-list" class="content simple-list">
+        <div class="content">
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="album-cover-placeholder">🎵</div>
+                    <div class="album-text">
+                        <h4>Nombre del Álbum 01</h4>
+                        <p>12 canciones</p>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="album-cover-placeholder">🎵</div>
+                    <div class="album-text">
+                        <h4>Nombre del Álbum 02</h4>
+                        <p>8 canciones</p>
+                    </div>
+                </div>
             </div>
+        </div>
         <footer class="footer">
-            <button id="btn-back-to-welcome" class="btn-back-footer">◀ ATRÁS MIMUS</button>
+            <button class="btn-back-footer">◀ ATRÁS MIMUS</button>
         </footer>
     </div>
 
     <div id="screen-songs" class="screen">
         <header class="header">
-            <h2 id="songs-album-title">CANCIONES</h2>
+            <h2>CANCIONES</h2>
         </header>
-        <div id="songs-list" class="content simple-list">
+        <div class="content">
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="song-checkbox"></div>
+                    <div class="song-text">
+                        <h4>01 - Canción Ejemplo 1</h4>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="song-checkbox"></div>
+                    <div class="song-text">
+                        <h4>02 - Canción Ejemplo 2</h4>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="song-checkbox"></div>
+                    <div class="song-text">
+                        <h4>03 - Canción Ejemplo 3</h4>
+                    </div>
+                </div>
             </div>
+        </div>
         <footer class="footer">
-            <button id="btn-back-to-albums" class="btn-back-footer">◀ ATRÁS ALBUMS</button>
+            <button class="btn-back-footer">◀ ATRÁS ALBUMS</button>
         </footer>
     </div>
 
     <div id="screen-player" class="screen">
         <div class="content">
-            <div class="big-cover-art">🎵</div>
-            <h1 id="player-title" class="track-title">Ninguna canción</h1>
-            <p id="player-artist-album" class="track-artist-album">Artista / Álbum</p>
-            
-            <div class="controls-row">
-                <button id="btn-prev" class="btn-player">⏮</button>
-                <button id="btn-play-pause" class="btn-player btn-play-pause">▶</button>
-                <button id="btn-next" class="btn-player">⏭</button>
+            <div class="player-cover-container">
+                <div class="player-cover-icon">🎵</div>
             </div>
-            <audio id="audio-element"></audio>
+            
+            <div class="player-info-block">
+                <h1 class="player-song-title">01 - CANCIÓN</h1>
+                <p class="player-artist-album">Álbum / Artista</p>
+            </div>
+
+            <div class="player-controls-row">
+                <button class="btn-ctrl">⏮</button>
+                <button class="btn-ctrl btn-ctrl-main">▶</button>
+                <button class="btn-ctrl">⏭</button>
+            </div>
         </div>
         <footer class="footer">
-            <button id="btn-back-to-songs" class="btn-back-footer">◀ ATRÁS CANCIONES</button>
+            <button class="btn-back-footer">◀ ATRÁS CANCIONES</button>
         </footer>
     </div>
 
-    <script src="app.js"></script>
+    <script>
+        // Pequeño script solo para que pruebes los botones rojos arriba a la derecha en tu navegador
+        function showDemo(num) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            if(num === 1) document.getElementById('screen-welcome').classList.add('active');
+            if(num === 2) document.getElementById('screen-albums').classList.add('active');
+            if(num === 3) document.getElementById('screen-songs').classList.add('active');
+            if(num === 4) document.getElementById('screen-player').classList.add('active');
+        }
+    </script>
 </body>
 </html>
