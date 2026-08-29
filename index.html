@@ -9,27 +9,57 @@
 </head>
 <body>
   <div class="app-container">
-    <header>
-      <h1>Mi Música</h1>
-      <button id="btn-open" class="btn-main">📂 ABRIR CARPETA MIMUSICA</button>
+    <!-- Encabezado con selector de carpeta y botón volver -->
+    <header class="app-header">
+      <button id="btn-back" class="btn-secondary hidden">⬅ Álbumes</button>
+      <h1 id="header-title">Mi Música</h1>
+      <label for="folder-input" class="btn-main-small">📂 Abrir MiMusica</label>
+      <input type="file" id="folder-input" webkitdirectory directory multiple accept="audio/*" style="display:none;">
     </header>
 
-    <main id="file-tree">
-      <p class="placeholder">Selecciona tu carpeta MiMusica para empezar.</p>
+    <!-- Vista 1: Lista de Álbumes / Canciones -->
+    <main id="content-view" class="content-area">
+      <div id="placeholder" class="placeholder">
+        <p>Selecciona la carpeta <strong>MiMusica</strong> para cargar tus álbumes.</p>
+      </div>
+      <div id="list-container" class="list-container"></div>
     </main>
 
-    <footer class="player-bar">
+    <!-- Vista 2: Reproductor estilo Files de Google -->
+    <section class="now-playing-panel">
+      <!-- Arte del Álbum / Portada central -->
+      <div class="album-art-container">
+        <div class="album-art-placeholder" id="album-art">
+          🎵
+        </div>
+      </div>
+
+      <!-- Información del tema -->
       <div class="track-info">
-        <span id="track-title">Sin reproducción</span>
-        <span id="track-album" class="subtext"></span>
+        <div id="track-title" class="track-title">Sin reproducción</div>
+        <div id="track-album" class="track-album">Selecciona un tema</div>
       </div>
+
+      <!-- Barra de progreso / Tiempo -->
+      <div class="progress-section">
+        <input type="range" id="progress-bar" value="0" min="0" max="100" step="0.1">
+        <div class="time-display">
+          <span id="time-current">0:00</span>
+          <span id="time-total">0:00</span>
+        </div>
+      </div>
+
+      <!-- Elemento Audio oculto -->
       <audio id="audio-element"></audio>
-      <div class="controls">
-        <button id="btn-prev" class="btn-control">⏮</button>
-        <button id="btn-play" class="btn-control btn-large">▶</button>
-        <button id="btn-next" class="btn-control">⏭</button>
+
+      <!-- Botones gigantes de control -->
+      <div class="controls-bar">
+        <button id="btn-prev" class="btn-ctrl" title="Anterior">⏮</button>
+        <button id="btn-play" class="btn-ctrl btn-main-ctrl" title="Reproducir/Pausar">▶</button>
+        <button id="btn-stop" class="btn-ctrl" title="Detener">⏹</button>
+        <button id="btn-next" class="btn-ctrl" title="Siguiente">⏭</button>
       </div>
-    </footer>
+    </section>
   </div>
 
   <script src="app.js"></script>
