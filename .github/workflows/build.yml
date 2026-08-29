@@ -35,14 +35,14 @@ jobs:
           npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir www
           npx cap add android
 
-          # 3. Forzar reemplazo simple del icono principal
+          # 3. Reemplazar icono evitando duplicados XML en anydpi-v26
           node -e '
             const fs = require("fs");
             const path = require("path");
             if (fs.existsSync("icon.png")) {
               const resDir = "android/app/src/main/res";
               if (fs.existsSync(resDir)) {
-                const mipmaps = fs.readdirSync(resDir).filter(d => d.startsWith("mipmap"));
+                const mipmaps = fs.readdirSync(resDir).filter(d => d.startsWith("mipmap") && !d.includes("anydpi"));
                 mipmaps.forEach(folder => {
                   fs.copyFileSync("icon.png", path.join(resDir, folder, "ic_launcher.png"));
                 });
@@ -50,7 +50,7 @@ jobs:
             }
           '
 
-          # 4. Sincronizar y compilar APK sin sobrecargar permisos
+          # 4. Sincronizar y compilar APK
           npx cap copy android
           cd android
           chmod +x gradlew
