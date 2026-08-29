@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Ruta fija nativa
     const TARGET_PATH = '/storage/emulated/0/MiMusica';
-    const AUDIO_EXTENSIONS = /\.(mp3|m4a|flac|wav|ogg|opus|aac|wma)$/i;
 
     // Control de pantallas
     function goToScreen(targetScreen) {
@@ -66,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return '';
     }
 
-    // Lectura nativa directa usando URI de Android
+    // Lectura nativa con fallback de rutas
     async function readAbsolutePath() {
         try {
             const { Filesystem } = window.Capacitor.Plugins;
@@ -92,48 +91,60 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // 2. Recorrer cada subcarpeta (Álbum) usando su URI nativa
+            // 2. Recorrer cada subcarpeta (Álbum)
             for (const item of rootDir.files) {
                 const folderName = parseItemName(item);
                 if (!folderName) continue;
 
-                // Usamos la URI directa o la ruta limpia decodificada
-                const subPath = (typeof item === 'object' && item.uri) ? item.uri : `${TARGET_PATH}/${folderName}`;
+                // Construimos la ruta en texto plano decodificado
+                const cleanFolderPath = `${TARGET_PATH}/${folderName}`;
+                
+                let subDir = null;
 
+                // Intento 1: Leer mediante ruta en texto limpio decodificado
                 try {
-                    const subDir = await Filesystem.readdir({ path: subPath });
-
-                    if (subDir && subDir.files && subDir.files.length > 0) {
-                        subDir.files.forEach(fileInfo => {
-                            const fileName = parseItemName(fileInfo);
-                            if (fileName && fileName.match(AUDIO_EXTENSIONS)) {
-                                // Obtener URI o ruta del archivo de audio
-                                const filePath = (typeof fileInfo === 'object' && fileInfo.uri) 
-                                    ? fileInfo.uri 
-                                    : `${TARGET_PATH}/${folderName}/${fileName}`;
-
-                                const track = {
-                                    id: globalIdx++,
-                                    title: fileName.replace(/\.[^/.]+$/, ""),
-                                    folder: folderName,
-                                    url: window.Capacitor.convertFileSrc(filePath)
-                                };
-
-                                if (!albumsMap[folderName]) albumsMap[folderName] = [];
-                                albumsMap[folderName].push(track);
-                            }
-                        });
+                    subDir = await Filesystem.readdir({ path: cleanFolderPath });
+                } catch (e1) {
+                    // Intento 2: Si falla, intentar usando la URI directa de Android
+                    if (typeof item === 'object' && item.uri) {
+                        try {
+                            subDir = await Filesystem.readdir({ path: item.uri });
+                        } catch (e2) {
+                            subDir = null;
+                        }
                     }
-                } catch (subErr) {
-                    console.log('Error leyendo subcarpeta:', subErr);
+                }
+
+                if (subDir && subDir.files && subDir.files.length > 0) {
+                    subDir.files.forEach(fileInfo => {
+                        const fileName = parseItemName(fileInfo);
+                        
+                        // Si el elemento no es vacío y no es una carpeta oculta de sistema (que empiece por .)
+                        if (fileName && !fileName.startsWith('.')) {
+                            // Ruta para el reproductor de audio
+                            const rawFilePath = (typeof fileInfo === 'object' && fileInfo.uri) 
+                                ? fileInfo.uri 
+                                : `${cleanFolderPath}/${fileName}`;
+
+                            const track = {
+                                id: globalIdx++,
+                                title: fileName.replace(/\.[^/.]+$/, ""),
+                                folder: folderName,
+                                url: window.Capacitor.convertFileSrc(rawFilePath)
+                            };
+
+                            if (!albumsMap[folderName]) albumsMap[folderName] = [];
+                            albumsMap[folderName].push(track);
+                        }
+                    });
                 }
             }
 
             if (Object.keys(albumsMap).length === 0) {
                 albumsList.innerHTML = `
                     <div style="padding: 30px 20px; text-align: center;">
-                        <p style="color: #ffffff; font-weight: bold;">Sin canciones de audio</p>
-                        <p style="color: #a0a0a0; font-size: 14px;">No se encontraron canciones dentro de las carpetas de tus álbumes.</p>
+                        <p style="color: #ffffff; font-weight: bold;">Sin canciones detectadas</p>
+                        <p style="color: #a0a0a0; font-size: 14px;">Revisa las canciones dentro de tus carpetas.</p>
                     </div>`;
                 return;
             }
