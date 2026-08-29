@@ -21,14 +21,50 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
-      - name: Compilar APK
+      - name: Compilar APK con Diseño Original
         run: |
+          # 1. Crear carpeta www limpia
+          rm -rf www
           mkdir -p www
-          cp index.html style.css app.js manifest.json www/ 2>/dev/null || true
+
+          # 2. Copiar ABSOLUTAMENTE TODOS los archivos web de tu proyecto
+          cp -r index.html style.css app.js manifest.json *.png *.jpg *.svg www/ 2>/dev/null || true
+
+          # 3. Configurar e Inicializar Capacitor sin alterar interfaz
           npm init -y
           npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
           npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir www
           npx cap add android
+
+          # 4. Inyectar permisos de lectura de almacenamiento interno en Android
+          node -e '
+            const fs = require("fs");
+            const file = "android/app/src/main/AndroidManifest.xml";
+            if (fs.existsSync(file)) {
+              let content = fs.readFileSync(file, "utf8");
+              const permissions = `
+                <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+                <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+              `;
+              content = content.replace("<application", permissions + "\n<application");
+              fs.writeFileSync(file, content, "utf8");
+            }
+          '
+
+          # 5. Copiar icono personalizado si existe icon.png
+          node -e '
+            const fs = require("fs");
+            if (fs.existsSync("icon.png")) {
+              console.log("Copiando icono personalizado...");
+              const targetDir = "android/app/src/main/res/mipmap-xxhdpi/";
+              if (fs.existsSync(targetDir)) {
+                fs.copyFileSync("icon.png", targetDir + "ic_launcher.png");
+                fs.copyFileSync("icon.png", targetDir + "ic_launcher_round.png");
+              }
+            }
+          '
+
+          # 6. Sincronizar y compilar
           npx cap copy android
           cd android
           chmod +x gradlew
