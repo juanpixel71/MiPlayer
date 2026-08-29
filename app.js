@@ -1,122 +1,78 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Referencias a pantallas
-    const s1 = document.getElementById('screen-welcome');
-    const s2 = document.getElementById('screen-albums');
-    const s3 = document.getElementById('screen-songs');
-    const s4 = document.getElementById('screen-player');
+    // Referencias a las 3 pantallas
+    const s1 = document.getElementById('screen-albums');
+    const s2 = document.getElementById('screen-songs');
+    const s3 = document.getElementById('screen-player');
 
-    // Botones
-    const btnSelectFolder = document.getElementById('btn-select-folder');
-    const btnChangeFolder = document.getElementById('btn-change-folder');
-    const fileInput = document.getElementById('file-input');
+    // Botones de navegación
+    const btnBackToAlbums = s2.querySelector('.btn-back-footer');
+    const btnBackToSongs = s3.querySelector('.btn-back-footer');
 
-    const btnBackToWelcome = document.getElementById('btn-back-to-welcome');
-    const btnBackToAlbums = document.getElementById('btn-back-to-albums');
-    const btnBackToSongs = document.getElementById('btn-back-to-songs');
-
-    // Listas y Textos
-    const albumsList = document.getElementById('albums-list');
-    const songsList = document.getElementById('songs-list');
+    // Elementos de la interfaz
+    const albumsList = s1.querySelector('.list-container');
+    const songsList = s2.querySelector('.list-container');
     const songsHeaderTitle = document.getElementById('songs-header-title');
 
-    // Reproductor
-    const playerTitle = document.getElementById('player-title');
-    const playerArtistAlbum = document.getElementById('player-artist-album');
-    const audioElement = document.getElementById('audio-element');
-    const btnPlayPause = document.getElementById('btn-play-pause');
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
+    // Elementos del reproductor
+    const playerTitle = s3.querySelector('.player-song-title');
+    const playerArtistAlbum = s3.querySelector('.player-artist-album');
+    const btnPrev = s3.querySelectorAll('.btn-ctrl')[0];
+    const btnPlayPause = s3.querySelector('.btn-ctrl-main');
+    const btnNext = s3.querySelectorAll('.btn-ctrl')[1];
 
-    // Estado de la app
+    // Elemento Audio HTML5 en memoria
+    const audioElement = new Audio();
+
+    // Estado global de la app
     let albumsMap = {};
     let currentPlaylist = [];
     let currentIndex = -1;
     let isPlaying = false;
 
-    // Control de navegación entre las 4 pantallas
+    // Control de pantallas
     function goToScreen(targetScreen) {
-        [s1, s2, s3, s4].forEach(s => s.classList.remove('active'));
+        [s1, s2, s3].forEach(s => s.classList.remove('active'));
         targetScreen.classList.add('active');
     }
 
-    // Botones ATRÁS
-    btnBackToWelcome.addEventListener('click', () => goToScreen(s1));
-    btnBackToAlbums.addEventListener('click', () => goToScreen(s2));
-    btnBackToSongs.addEventListener('click', () => goToScreen(s3));
+    // Eventos de botones ATRÁS
+    if (btnBackToAlbums) btnBackToAlbums.addEventListener('click', () => goToScreen(s1));
+    if (btnBackToSongs) btnBackToSongs.addEventListener('click', () => goToScreen(s2));
 
-    // Eventos del Selector de Carpetas
-    btnSelectFolder.addEventListener('click', triggerFolderPicker);
-    if (btnChangeFolder) btnChangeFolder.addEventListener('click', triggerFolderPicker);
+    // Inicialización al abrir la app
+    initApp();
 
-    function triggerFolderPicker() {
-        // Si estamos en la APK nativa con Capacitor Filesystem
+    async function initApp() {
         if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
-            readNativeDirectory();
+            await readNativeMusicFolder();
         } else {
-            // Fallback para pruebas en navegador Web PC
-            fileInput.click();
+            renderDemoData(); // Datos de muestra si se abre en navegador PC
         }
     }
 
-    // Lógica para Navegador Web (PC)
-    fileInput.addEventListener('change', (e) => {
-        const files = Array.from(e.target.files);
-        processFilesList(files);
-    });
-
-    function processFilesList(files) {
-        const audioFiles = files.filter(f => f.name.match(/\.(mp3|wav|ogg|m4a|flac)$/i));
-
-        if (audioFiles.length === 0) {
-            alert('No se encontraron canciones en esta carpeta.');
-            return;
-        }
-
-        albumsMap = {};
-        audioFiles.forEach((file, idx) => {
-            const parts = (file.webkitRelativePath || file.name).split('/');
-            let folderName = parts.length > 1 ? parts[parts.length - 2] : 'Álbum Único';
-
-            const track = {
-                id: idx,
-                title: file.name.replace(/\.[^/.]+$/, ""),
-                folder: folderName,
-                url: URL.createObjectURL(file)
-            };
-
-            if (!albumsMap[folderName]) albumsMap[folderName] = [];
-            albumsMap[folderName].push(track);
-        });
-
-        renderAlbums();
-        goToScreen(s2);
-    }
-
-    // Lógica para App Nativa Android (Capacitor)
-    async function readNativeDirectory() {
+    // Lectura automática de música en Android
+    async function readNativeMusicFolder() {
         try {
             const { Filesystem } = window.Capacitor.Plugins;
-            
-            // Solicitar permisos de lectura en Android
+
+            // Solicitar permisos de almacenamiento
             const perm = await Filesystem.requestPermissions();
             if (perm.publicStorage !== 'granted') {
-                alert('Se requieren permisos para acceder a tus archivos de audio.');
+                albumsList.innerHTML = `<p style="padding: 20px; color: #a0a0a0; text-align: center;">Se requieren permisos de almacenamiento para ver tu música.</p>`;
                 return;
             }
 
-            // Seleccionar carpeta o leer directorio de música por defecto
+            // Escanear carpeta de música estándar de Android
             const result = await Filesystem.readdir({
                 path: 'Music',
                 directory: 'DOCUMENTS'
             }).catch(() => null);
 
-            if (!result || !result.files) {
-                // Fallback al selector HTML si el directorio por defecto está vacío
-                fileInput.click();
+            if (!result || !result.files || result.files.length === 0) {
+                albumsList.innerHTML = `<p style="padding: 20px; color: #a0a0a0; text-align: center;">No se encontraron canciones en la carpeta Música.</p>`;
                 return;
             }
 
-            // Procesar los archivos devueltos por Android
             albumsMap = {};
             let globalIdx = 0;
 
@@ -135,24 +91,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            if (Object.keys(albumsMap).length === 0) {
-                fileInput.click(); // Abrir fallback si no hay audios en la ruta predeterminada
-                return;
-            }
-
             renderAlbums();
-            goToScreen(s2);
 
         } catch (err) {
-            console.error('Error al leer carpetas nativas:', err);
-            fileInput.click(); // En caso de fallo en Android, usamos el selector del sistema
+            console.error('Error al leer archivos:', err);
+            renderDemoData();
         }
     }
 
-    // Render PANTALLA 2 (Álbumes)
+    // Datos simulados para pruebas en navegador Web (PC)
+    function renderDemoData() {
+        albumsMap = {
+            "Álbum de Prueba 1": [
+                { id: 1, title: "01 - Canción de Ejemplo A", folder: "Álbum de Prueba 1", url: "" },
+                { id: 2, title: "02 - Canción de Ejemplo B", folder: "Álbum de Prueba 1", url: "" }
+            ],
+            "Álbum de Prueba 2": [
+                { id: 3, title: "01 - Tema Instrumental", folder: "Álbum de Prueba 2", url: "" }
+            ]
+        };
+        renderAlbums();
+    }
+
+    // Render PANTALLA 1 (Álbumes)
     function renderAlbums() {
         albumsList.innerHTML = '';
-        Object.keys(albumsMap).forEach(folderName => {
+        const albumKeys = Object.keys(albumsMap);
+
+        if (albumKeys.length === 0) {
+            albumsList.innerHTML = `<p style="padding: 20px; color: #a0a0a0; text-align: center;">No hay álbumes disponibles.</p>`;
+            return;
+        }
+
+        albumKeys.forEach(folderName => {
             const tracks = albumsMap[folderName];
             const item = document.createElement('div');
             item.className = 'list-item';
@@ -164,48 +135,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             item.addEventListener('click', () => {
-                songsHeaderTitle.textContent = "CANCIONES";
+                songsHeaderTitle.textContent = folderName;
                 renderSongs(tracks);
-                goToScreen(s3);
+                goToScreen(s2);
             });
             albumsList.appendChild(item);
         });
     }
 
-    // Render PANTALLA 3 (Canciones)
+    // Render PANTALLA 2 (Canciones del Álbum)
     function renderSongs(tracks) {
         songsList.innerHTML = '';
         tracks.forEach(track => {
             const item = document.createElement('div');
             item.className = 'list-item';
             item.innerHTML = `
-                <div class="song-checkbox"></div>
                 <div class="song-text">
                     <h4>${track.title}</h4>
                 </div>
             `;
             item.addEventListener('click', () => {
                 playTrack(track, tracks);
-                goToScreen(s4);
+                goToScreen(s3);
             });
             songsList.appendChild(item);
         });
     }
 
-    // Render y Control PANTALLA 4 (Reproductor)
+    // Render PANTALLA 3 (Reproductor)
     function playTrack(track, playlist) {
         currentPlaylist = playlist;
         currentIndex = currentPlaylist.findIndex(t => t.id === track.id);
 
-        audioElement.src = track.url;
-        audioElement.play();
-        isPlaying = true;
+        if (track.url) {
+            audioElement.src = track.url;
+            audioElement.play().then(() => {
+                isPlaying = true;
+                btnPlayPause.textContent = '⏸';
+            }).catch(e => console.log('Error de reproducción:', e));
+        }
 
         playerTitle.textContent = track.title;
-        playerArtistAlbum.textContent = `${track.folder}`;
-        btnPlayPause.textContent = '⏸';
+        playerArtistAlbum.textContent = track.folder;
     }
 
+    // Controles del Reproductor
     btnPlayPause.addEventListener('click', () => {
         if (!audioElement.src) return;
         if (isPlaying) {
