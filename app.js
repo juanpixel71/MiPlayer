@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Pantallas
+    // Referencias a pantallas
     const s1 = document.getElementById('screen-welcome');
     const s2 = document.getElementById('screen-albums');
     const s3 = document.getElementById('screen-songs');
@@ -27,13 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnPrev = document.getElementById('btn-prev');
     const btnNext = document.getElementById('btn-next');
 
-    // Estado
+    // Estado de la app
     let albumsMap = {};
     let currentPlaylist = [];
     let currentIndex = -1;
     let isPlaying = false;
 
-    // Cambiar de pantalla
+    // Control de navegación entre las 4 pantallas
     function goToScreen(targetScreen) {
         [s1, s2, s3, s4].forEach(s => s.classList.remove('active'));
         targetScreen.classList.add('active');
@@ -44,12 +44,27 @@ document.addEventListener('DOMContentLoaded', () => {
     btnBackToAlbums.addEventListener('click', () => goToScreen(s2));
     btnBackToSongs.addEventListener('click', () => goToScreen(s3));
 
-    // Abrir Carpeta
-    btnSelectFolder.addEventListener('click', () => fileInput.click());
-    if (btnChangeFolder) btnChangeFolder.addEventListener('click', () => fileInput.click());
+    // Eventos del Selector de Carpetas
+    btnSelectFolder.addEventListener('click', triggerFolderPicker);
+    if (btnChangeFolder) btnChangeFolder.addEventListener('click', triggerFolderPicker);
 
+    function triggerFolderPicker() {
+        // Si estamos en la APK nativa con Capacitor Filesystem
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
+            readNativeDirectory();
+        } else {
+            // Fallback para pruebas en navegador Web PC
+            fileInput.click();
+        }
+    }
+
+    // Lógica para Navegador Web (PC)
     fileInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files);
+        processFilesList(files);
+    });
+
+    function processFilesList(files) {
         const audioFiles = files.filter(f => f.name.match(/\.(mp3|wav|ogg|m4a|flac)$/i));
 
         if (audioFiles.length === 0) {
@@ -75,7 +90,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderAlbums();
         goToScreen(s2);
-    });
+    }
+
+    // Lógica para App Nativa Android (Capacitor)
+    async function readNativeDirectory() {
+        try {
+            const { Filesystem } = window.Capacitor.Plugins;
+            
+            // Solicitar permisos de lectura en Android
+            const perm = await Filesystem.requestPermissions();
+            if (perm.publicStorage !== 'granted') {
+                alert('Se requieren permisos para acceder a tus archivos de audio.');
+                return;
+            }
+
+            // Seleccionar carpeta o leer directorio de música por defecto
+            const result = await Filesystem.readdir({
+                path: 'Music',
+                directory: 'DOCUMENTS'
+            }).catch(() => null);
+
+            if (!result || !result.files) {
+                // Fallback al selector HTML si el directorio por defecto está vacío
+                fileInput.click();
+                return;
+            }
+
+            // Procesar los archivos devueltos por Android
+            albumsMap = {};
+            let globalIdx = 0;
+
+            result.files.forEach(fileInfo => {
+                const fileName = typeof fileInfo === 'string' ? fileInfo : fileInfo.name;
+                if (fileName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
+                    const track = {
+                        id: globalIdx++,
+                        title: fileName.replace(/\.[^/.]+$/, ""),
+                        folder: 'Música Local',
+                        url: window.Capacitor.convertFileSrc(fileInfo.uri || fileName)
+                    };
+
+                    if (!albumsMap['Música Local']) albumsMap['Música Local'] = [];
+                    albumsMap['Música Local'].push(track);
+                }
+            });
+
+            if (Object.keys(albumsMap).length === 0) {
+                fileInput.click(); // Abrir fallback si no hay audios en la ruta predeterminada
+                return;
+            }
+
+            renderAlbums();
+            goToScreen(s2);
+
+        } catch (err) {
+            console.error('Error al leer carpetas nativas:', err);
+            fileInput.click(); // En caso de fallo en Android, usamos el selector del sistema
+        }
+    }
 
     // Render PANTALLA 2 (Álbumes)
     function renderAlbums() {
@@ -120,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // PANTALLA 4 (Reproductor)
+    // Render y Control PANTALLA 4 (Reproductor)
     function playTrack(track, playlist) {
         currentPlaylist = playlist;
         currentIndex = currentPlaylist.findIndex(t => t.id === track.id);
