@@ -44,57 +44,103 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initApp() {
         if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
-            await readNativeMusicFolder();
+            await readSpecificFolder();
         } else {
-            renderDemoData(); // Datos de muestra si se abre en navegador PC
+            renderDemoData(); // Datos de muestra para navegador de PC
         }
     }
 
-    // Lectura automática de música en Android
-    async function readNativeMusicFolder() {
+    // Lectura enfocada EXCLUSIVAMENTE en la carpeta "MiMusica"
+    async function readSpecificFolder() {
         try {
             const { Filesystem } = window.Capacitor.Plugins;
 
-            // Solicitar permisos de almacenamiento
-            const perm = await Filesystem.requestPermissions();
-            if (perm.publicStorage !== 'granted') {
-                albumsList.innerHTML = `<p style="padding: 20px; color: #a0a0a0; text-align: center;">Se requieren permisos de almacenamiento para ver tu música.</p>`;
-                return;
-            }
-
-            // Escanear carpeta de música estándar de Android
-            const result = await Filesystem.readdir({
-                path: 'Music',
-                directory: 'DOCUMENTS'
-            }).catch(() => null);
-
-            if (!result || !result.files || result.files.length === 0) {
-                albumsList.innerHTML = `<p style="padding: 20px; color: #a0a0a0; text-align: center;">No se encontraron canciones en la carpeta Música.</p>`;
-                return;
+            // Pedir permisos de almacenamiento
+            try {
+                await Filesystem.requestPermissions();
+            } catch (e) {
+                console.log('Permisos solicitados');
             }
 
             albumsMap = {};
             let globalIdx = 0;
 
-            result.files.forEach(fileInfo => {
-                const fileName = typeof fileInfo === 'string' ? fileInfo : fileInfo.name;
-                if (fileName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
-                    const track = {
-                        id: globalIdx++,
-                        title: fileName.replace(/\.[^/.]+$/, ""),
-                        folder: 'Música Local',
-                        url: window.Capacitor.convertFileSrc(fileInfo.uri || fileName)
-                    };
+            // Probar variantes comunes del nombre de la carpeta raíz
+            const targetFolders = ['MiMusica', 'Mi Musica', 'Music/MiMusica'];
+            let foundFolder = false;
 
-                    if (!albumsMap['Música Local']) albumsMap['Música Local'] = [];
-                    albumsMap['Música Local'].push(track);
+            for (const folderName of targetFolders) {
+                try {
+                    // Intentar leer el contenido de la carpeta MiMusica
+                    const rootDir = await Filesystem.readdir({
+                        path: folderName,
+                        directory: 'DOCUMENTS'
+                    });
+
+                    if (rootDir && rootDir.files) {
+                        foundFolder = true;
+
+                        for (const item of rootDir.files) {
+                            const itemName = typeof item === 'string' ? item : item.name;
+
+                            // Si es una subcarpeta (un Álbum), leemos sus canciones
+                            try {
+                                const subDir = await Filesystem.readdir({
+                                    path: `${folderName}/${itemName}`,
+                                    directory: 'DOCUMENTS'
+                                });
+
+                                if (subDir && subDir.files) {
+                                    subDir.files.forEach(fileInfo => {
+                                        const fileName = typeof fileInfo === 'string' ? fileInfo : fileInfo.name;
+                                        if (fileName && fileName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
+                                            const track = {
+                                                id: globalIdx++,
+                                                title: fileName.replace(/\.[^/.]+$/, ""),
+                                                folder: itemName,
+                                                url: window.Capacitor.convertFileSrc(fileInfo.uri || `${folderName}/${itemName}/${fileName}`)
+                                            };
+
+                                            if (!albumsMap[itemName]) albumsMap[itemName] = [];
+                                            albumsMap[itemName].push(track);
+                                        }
+                                    });
+                                }
+                            } catch (subErr) {
+                                // Si es un archivo de audio directamente suelto dentro de MiMusica
+                                if (itemName && itemName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
+                                    const track = {
+                                        id: globalIdx++,
+                                        title: itemName.replace(/\.[^/.]+$/, ""),
+                                        folder: 'Varios',
+                                        url: window.Capacitor.convertFileSrc(item.uri || `${folderName}/${itemName}`)
+                                    };
+
+                                    if (!albumsMap['Varios']) albumsMap['Varios'] = [];
+                                    albumsMap['Varios'].push(track);
+                                }
+                            }
+                        }
+                        break; // Si encontró la carpeta MiMusica, no sigue buscando en las variantes
+                    }
+                } catch (err) {
+                    continue;
                 }
-            });
+            }
+
+            if (!foundFolder || Object.keys(albumsMap).length === 0) {
+                albumsList.innerHTML = `
+                    <div style="padding: 30px 20px; text-align: center;">
+                        <p style="color: #ffffff; font-weight: bold; font-size: 16px; margin-bottom: 8px;">No se encontró la carpeta "MiMusica"</p>
+                        <p style="color: #a0a0a0; font-size: 14px;">Crea una carpeta llamada <b style="color:#fff;">MiMusica</b> en la memoria de tu teléfono y guarda dentro tus carpetas de álbumes.</p>
+                    </div>`;
+                return;
+            }
 
             renderAlbums();
 
         } catch (err) {
-            console.error('Error al leer archivos:', err);
+            console.error('Error al acceder a MiMusica:', err);
             renderDemoData();
         }
     }
@@ -102,12 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Datos simulados para pruebas en navegador Web (PC)
     function renderDemoData() {
         albumsMap = {
-            "Álbum de Prueba 1": [
-                { id: 1, title: "01 - Canción de Ejemplo A", folder: "Álbum de Prueba 1", url: "" },
-                { id: 2, title: "02 - Canción de Ejemplo B", folder: "Álbum de Prueba 1", url: "" }
+            "Rock Clásico": [
+                { id: 1, title: "01 - Song One", folder: "Rock Clásico", url: "" },
+                { id: 2, title: "02 - Song Two", folder: "Rock Clásico", url: "" }
             ],
-            "Álbum de Prueba 2": [
-                { id: 3, title: "01 - Tema Instrumental", folder: "Álbum de Prueba 2", url: "" }
+            "Jazz Session": [
+                { id: 3, title: "01 - Smooth Track", folder: "Jazz Session", url: "" }
             ]
         };
         renderAlbums();
@@ -118,10 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         albumsList.innerHTML = '';
         const albumKeys = Object.keys(albumsMap);
 
-        if (albumKeys.length === 0) {
-            albumsList.innerHTML = `<p style="padding: 20px; color: #a0a0a0; text-align: center;">No hay álbumes disponibles.</p>`;
-            return;
-        }
+        if (albumKeys.length === 0) return;
 
         albumKeys.forEach(folderName => {
             const tracks = albumsMap[folderName];
