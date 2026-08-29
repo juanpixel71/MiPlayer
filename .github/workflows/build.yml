@@ -7,52 +7,34 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout del código
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Configurar Java
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Preparar proyecto y compilar APK
+      - name: Compilar
         run: |
-          # 1. Crear carpeta www y copiar archivos de la app
-          mkdir -p www
+          mkdir www
           cp index.html style.css app.js manifest.json www/ 2>/dev/null || true
-
-          # 2. Inicializar Capacitor
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir www
+          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
+          npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir www --no-interaction
           npx cap add android
-
-          # 3. Inyectar permisos de lectura de almacenamiento de forma segura
-          node -e '
-            const fs = require("fs");
-            const file = "android/app/src/main/AndroidManifest.xml";
-            let content = fs.readFileSync(file, "utf8");
-            const permissions = `
-              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-            `;
-            content = content.replace("<application", permissions + "\n<application");
-            fs.writeFileSync(file, content, "utf8");
-          '
-
-          # 4. Sincronizar y compilar APK
           npx cap copy android
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug
 
-      - name: Subir APK como artefacto
+      - name: Artifact
         uses: actions/upload-artifact@v4
         with:
           name: MiMusica-App-Nativa
