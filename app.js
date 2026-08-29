@@ -20,14 +20,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnPlayPause = s3.querySelector('.btn-ctrl-main');
     const btnNext = s3.querySelectorAll('.btn-ctrl')[1];
 
-    // Elemento Audio HTML5 en memoria
+    // Elemento Audio HTML5
     const audioElement = new Audio();
 
-    // Estado global de la app
+    // Estado global
     let albumsMap = {};
     let currentPlaylist = [];
     let currentIndex = -1;
     let isPlaying = false;
+
+    // Ruta fija de la app en la memoria interna de Android
+    const TARGET_PATH = '/storage/emulated/0/MiMusica';
 
     // Control de pantallas
     function goToScreen(targetScreen) {
@@ -44,14 +47,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initApp() {
         if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
-            await readSpecificFolder();
+            await readAbsolutePath();
         } else {
-            renderDemoData(); // Datos de muestra para navegador de PC
+            renderDemoData(); // Datos simulados para pruebas en PC
         }
     }
 
-    // Lectura enfocada EXCLUSIVAMENTE en la carpeta "MiMusica"
-    async function readSpecificFolder() {
+    // Lectura enfocada exclusivamente en /storage/emulated/0/MiMusica
+    async function readAbsolutePath() {
         try {
             const { Filesystem } = window.Capacitor.Plugins;
 
@@ -65,74 +68,73 @@ document.addEventListener('DOMContentLoaded', () => {
             albumsMap = {};
             let globalIdx = 0;
 
-            // Probar variantes comunes del nombre de la carpeta raíz
-            const targetFolders = ['MiMusica', 'Mi Musica', 'Music/MiMusica'];
-            let foundFolder = false;
+            // Leer la carpeta principal /storage/emulated/0/MiMusica
+            const rootDir = await Filesystem.readdir({
+                path: TARGET_PATH
+            }).catch(() => null);
 
-            for (const folderName of targetFolders) {
+            if (!rootDir || !rootDir.files || rootDir.files.length === 0) {
+                albumsList.innerHTML = `
+                    <div style="padding: 30px 20px; text-align: center;">
+                        <p style="color: #ffffff; font-weight: bold; font-size: 16px; margin-bottom: 8px;">No se encontró la carpeta MiMusica</p>
+                        <p style="color: #a0a0a0; font-size: 14px; line-height: 1.4;">
+                            Asegúrate de tener creada la carpeta:<br>
+                            <b style="color: #4caf50;">/storage/emulated/0/MiMusica</b><br>
+                            en la memoria interna y guarda ahí tus álbumes.
+                        </p>
+                    </div>`;
+                return;
+            }
+
+            // Recorrer los elementos encontrados dentro de MiMusica
+            for (const item of rootDir.files) {
+                const itemName = typeof item === 'string' ? item : item.name;
+                const albumFolderPath = `${TARGET_PATH}/${itemName}`;
+
                 try {
-                    // Intentar leer el contenido de la carpeta MiMusica
-                    const rootDir = await Filesystem.readdir({
-                        path: folderName,
-                        directory: 'DOCUMENTS'
+                    // Intentar leer como subcarpeta (Álbum)
+                    const subDir = await Filesystem.readdir({
+                        path: albumFolderPath
                     });
 
-                    if (rootDir && rootDir.files) {
-                        foundFolder = true;
+                    if (subDir && subDir.files) {
+                        subDir.files.forEach(fileInfo => {
+                            const fileName = typeof fileInfo === 'string' ? fileInfo : fileInfo.name;
+                            if (fileName && fileName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
+                                const filePath = `${albumFolderPath}/${fileName}`;
+                                const track = {
+                                    id: globalIdx++,
+                                    title: fileName.replace(/\.[^/.]+$/, ""),
+                                    folder: itemName,
+                                    url: window.Capacitor.convertFileSrc(filePath)
+                                };
 
-                        for (const item of rootDir.files) {
-                            const itemName = typeof item === 'string' ? item : item.name;
-
-                            // Si es una subcarpeta (un Álbum), leemos sus canciones
-                            try {
-                                const subDir = await Filesystem.readdir({
-                                    path: `${folderName}/${itemName}`,
-                                    directory: 'DOCUMENTS'
-                                });
-
-                                if (subDir && subDir.files) {
-                                    subDir.files.forEach(fileInfo => {
-                                        const fileName = typeof fileInfo === 'string' ? fileInfo : fileInfo.name;
-                                        if (fileName && fileName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
-                                            const track = {
-                                                id: globalIdx++,
-                                                title: fileName.replace(/\.[^/.]+$/, ""),
-                                                folder: itemName,
-                                                url: window.Capacitor.convertFileSrc(fileInfo.uri || `${folderName}/${itemName}/${fileName}`)
-                                            };
-
-                                            if (!albumsMap[itemName]) albumsMap[itemName] = [];
-                                            albumsMap[itemName].push(track);
-                                        }
-                                    });
-                                }
-                            } catch (subErr) {
-                                // Si es un archivo de audio directamente suelto dentro de MiMusica
-                                if (itemName && itemName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
-                                    const track = {
-                                        id: globalIdx++,
-                                        title: itemName.replace(/\.[^/.]+$/, ""),
-                                        folder: 'Varios',
-                                        url: window.Capacitor.convertFileSrc(item.uri || `${folderName}/${itemName}`)
-                                    };
-
-                                    if (!albumsMap['Varios']) albumsMap['Varios'] = [];
-                                    albumsMap['Varios'].push(track);
-                                }
+                                if (!albumsMap[itemName]) albumsMap[itemName] = [];
+                                albumsMap[itemName].push(track);
                             }
-                        }
-                        break; // Si encontró la carpeta MiMusica, no sigue buscando en las variantes
+                        });
                     }
-                } catch (err) {
-                    continue;
+                } catch (subErr) {
+                    // Si es una canción suelta directamente dentro de /MiMusica
+                    if (itemName && itemName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
+                        const filePath = `${TARGET_PATH}/${itemName}`;
+                        const track = {
+                            id: globalIdx++,
+                            title: itemName.replace(/\.[^/.]+$/, ""),
+                            folder: 'Varios',
+                            url: window.Capacitor.convertFileSrc(filePath)
+                        };
+
+                        if (!albumsMap['Varios']) albumsMap['Varios'] = [];
+                        albumsMap['Varios'].push(track);
+                    }
                 }
             }
 
-            if (!foundFolder || Object.keys(albumsMap).length === 0) {
+            if (Object.keys(albumsMap).length === 0) {
                 albumsList.innerHTML = `
                     <div style="padding: 30px 20px; text-align: center;">
-                        <p style="color: #ffffff; font-weight: bold; font-size: 16px; margin-bottom: 8px;">No se encontró la carpeta "MiMusica"</p>
-                        <p style="color: #a0a0a0; font-size: 14px;">Crea una carpeta llamada <b style="color:#fff;">MiMusica</b> en la memoria de tu teléfono y guarda dentro tus carpetas de álbumes.</p>
+                        <p style="color: #a0a0a0; font-size: 14px;">La carpeta <b>MiMusica</b> está vacía. Añade subcarpetas con canciones MP3.</p>
                     </div>`;
                 return;
             }
@@ -140,20 +142,17 @@ document.addEventListener('DOMContentLoaded', () => {
             renderAlbums();
 
         } catch (err) {
-            console.error('Error al acceder a MiMusica:', err);
+            console.error('Error al acceder a la ruta nativa:', err);
             renderDemoData();
         }
     }
 
-    // Datos simulados para pruebas en navegador Web (PC)
+    // Datos simulados para navegador de PC
     function renderDemoData() {
         albumsMap = {
             "Rock Clásico": [
                 { id: 1, title: "01 - Song One", folder: "Rock Clásico", url: "" },
                 { id: 2, title: "02 - Song Two", folder: "Rock Clásico", url: "" }
-            ],
-            "Jazz Session": [
-                { id: 3, title: "01 - Smooth Track", folder: "Jazz Session", url: "" }
             ]
         };
         renderAlbums();
@@ -186,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Render PANTALLA 2 (Canciones del Álbum)
+    // Render PANTALLA 2 (Canciones)
     function renderSongs(tracks) {
         songsList.innerHTML = '';
         tracks.forEach(track => {
@@ -222,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         playerArtistAlbum.textContent = track.folder;
     }
 
-    // Controles del Reproductor
+    // Controles del reproductor
     btnPlayPause.addEventListener('click', () => {
         if (!audioElement.src) return;
         if (isPlaying) {
