@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentIndex = -1;
     let isPlaying = false;
 
-    // Ruta fija de la app en la memoria interna de Android
+    // Ruta fija nativa
     const TARGET_PATH = '/storage/emulated/0/MiMusica';
 
     // Control de pantallas
@@ -42,23 +42,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnBackToAlbums) btnBackToAlbums.addEventListener('click', () => goToScreen(s1));
     if (btnBackToSongs) btnBackToSongs.addEventListener('click', () => goToScreen(s2));
 
-    // Inicialización al abrir la app
+    // Inicialización
     initApp();
 
     async function initApp() {
         if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
             await readAbsolutePath();
         } else {
-            renderDemoData(); // Datos simulados para pruebas en PC
+            renderDemoData();
         }
     }
 
-    // Lectura enfocada exclusivamente en /storage/emulated/0/MiMusica
+    // Función auxiliar para obtener el nombre del archivo/carpeta de forma segura en Android
+    function getItemName(item) {
+        if (typeof item === 'string') return item;
+        if (item && item.name) return item.name;
+        if (item && item.path) {
+            const parts = item.path.split('/');
+            return parts[parts.length - 1];
+        }
+        return '';
+    }
+
+    // Lectura nativa y profunda de /storage/emulated/0/MiMusica
     async function readAbsolutePath() {
         try {
             const { Filesystem } = window.Capacitor.Plugins;
 
-            // Pedir permisos de almacenamiento
+            // Solicitar permisos de almacenamiento
             try {
                 await Filesystem.requestPermissions();
             } catch (e) {
@@ -68,10 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
             albumsMap = {};
             let globalIdx = 0;
 
-            // Leer la carpeta principal /storage/emulated/0/MiMusica
-            const rootDir = await Filesystem.readdir({
-                path: TARGET_PATH
-            }).catch(() => null);
+            // 1. Leer la carpeta raíz /storage/emulated/0/MiMusica
+            const rootDir = await Filesystem.readdir({ path: TARGET_PATH }).catch(() => null);
 
             if (!rootDir || !rootDir.files || rootDir.files.length === 0) {
                 albumsList.innerHTML = `
@@ -86,20 +95,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Recorrer los elementos encontrados dentro de MiMusica
+            // 2. Procesar todos los elementos dentro de MiMusica de forma asíncrona síncrona
             for (const item of rootDir.files) {
-                const itemName = typeof item === 'string' ? item : item.name;
+                const itemName = getItemName(item);
+                if (!itemName) continue;
+
                 const albumFolderPath = `${TARGET_PATH}/${itemName}`;
 
                 try {
                     // Intentar leer como subcarpeta (Álbum)
-                    const subDir = await Filesystem.readdir({
-                        path: albumFolderPath
-                    });
+                    const subDir = await Filesystem.readdir({ path: albumFolderPath });
 
-                    if (subDir && subDir.files) {
+                    if (subDir && subDir.files && subDir.files.length > 0) {
                         subDir.files.forEach(fileInfo => {
-                            const fileName = typeof fileInfo === 'string' ? fileInfo : fileInfo.name;
+                            const fileName = getItemName(fileInfo);
                             if (fileName && fileName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
                                 const filePath = `${albumFolderPath}/${fileName}`;
                                 const track = {
@@ -115,8 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                 } catch (subErr) {
-                    // Si es una canción suelta directamente dentro de /MiMusica
-                    if (itemName && itemName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
+                    // Si no es subcarpeta, verificar si es un archivo de música en la raíz de MiMusica
+                    if (itemName.match(/\.(mp3|wav|ogg|m4a|flac)$/i)) {
                         const filePath = `${TARGET_PATH}/${itemName}`;
                         const track = {
                             id: globalIdx++,
@@ -131,10 +140,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // 3. Comprobar resultado final del escaneo
             if (Object.keys(albumsMap).length === 0) {
                 albumsList.innerHTML = `
                     <div style="padding: 30px 20px; text-align: center;">
-                        <p style="color: #a0a0a0; font-size: 14px;">La carpeta <b>MiMusica</b> está vacía. Añade subcarpetas con canciones MP3.</p>
+                        <p style="color: #ffffff; font-weight: bold; font-size: 16px; margin-bottom: 8px;">Carpeta "MiMusica" detectada</p>
+                        <p style="color: #a0a0a0; font-size: 14px; line-height: 1.4;">
+                            No se encontraron archivos audio dentro.<br>
+                            Asegúrate de que tus archivos tengan extensión <b>.mp3</b>.
+                        </p>
                     </div>`;
                 return;
             }
