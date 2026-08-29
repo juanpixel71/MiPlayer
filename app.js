@@ -1,21 +1,25 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Referencias a las 4 pantallas
-    const screen1 = document.getElementById('screen-welcome');
-    const screen2 = document.getElementById('screen-albums');
-    const screen3 = document.getElementById('screen-songs');
-    const screen4 = document.getElementById('screen-player');
+    // Pantallas
+    const s1 = document.getElementById('screen-welcome');
+    const s2 = document.getElementById('screen-albums');
+    const s3 = document.getElementById('screen-songs');
+    const s4 = document.getElementById('screen-player');
 
-    // Botones de Abrir y Seleccionar
+    // Botones
     const btnSelectFolder = document.getElementById('btn-select-folder');
-    const btnChangeFolder = document.getElementById('btn-change-folder-albums');
+    const btnChangeFolder = document.getElementById('btn-change-folder');
     const fileInput = document.getElementById('file-input');
 
-    // Listas y Contenedores
+    const btnBackToWelcome = document.getElementById('btn-back-to-welcome');
+    const btnBackToAlbums = document.getElementById('btn-back-to-albums');
+    const btnBackToSongs = document.getElementById('btn-back-to-songs');
+
+    // Listas y Textos
     const albumsList = document.getElementById('albums-list');
     const songsList = document.getElementById('songs-list');
-    const songsAlbumTitle = document.getElementById('songs-album-title');
+    const songsHeaderTitle = document.getElementById('songs-header-title');
 
-    // Elementos del Reproductor (4ª Pantalla)
+    // Reproductor
     const playerTitle = document.getElementById('player-title');
     const playerArtistAlbum = document.getElementById('player-artist-album');
     const audioElement = document.getElementById('audio-element');
@@ -23,32 +27,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnPrev = document.getElementById('btn-prev');
     const btnNext = document.getElementById('btn-next');
 
-    // Botones de navegación ATRÁS
-    const btnBackToWelcome = document.getElementById('btn-back-to-welcome');
-    const btnBackToAlbums = document.getElementById('btn-back-to-albums');
-    const btnBackToSongs = document.getElementById('btn-back-to-songs');
-
-    // Estado interno
-    let foldersMap = {};
+    // Estado
+    let albumsMap = {};
     let currentPlaylist = [];
     let currentIndex = -1;
     let isPlaying = false;
 
-    // Función limpia para cambiar de pantalla
-    function goToScreen(target) {
-        screen1.classList.remove('active');
-        screen2.classList.remove('active');
-        screen3.classList.remove('active');
-        screen4.classList.remove('active');
-        target.classList.add('active');
+    // Cambiar de pantalla
+    function goToScreen(targetScreen) {
+        [s1, s2, s3, s4].forEach(s => s.classList.remove('active'));
+        targetScreen.classList.add('active');
     }
 
-    // --- ACCIONES DE LOS BOTONES ATRÁS ---
-    btnBackToWelcome.addEventListener('click', () => goToScreen(screen1));
-    btnBackToAlbums.addEventListener('click', () => goToScreen(screen2));
-    btnBackToSongs.addEventListener('click', () => goToScreen(screen3));
+    // Botones ATRÁS
+    btnBackToWelcome.addEventListener('click', () => goToScreen(s1));
+    btnBackToAlbums.addEventListener('click', () => goToScreen(s2));
+    btnBackToSongs.addEventListener('click', () => goToScreen(s3));
 
-    // --- SELECCIÓN DE CARPETA ---
+    // Abrir Carpeta
     btnSelectFolder.addEventListener('click', () => fileInput.click());
     if (btnChangeFolder) btnChangeFolder.addEventListener('click', () => fileInput.click());
 
@@ -57,74 +53,75 @@ document.addEventListener('DOMContentLoaded', () => {
         const audioFiles = files.filter(f => f.name.match(/\.(mp3|wav|ogg|m4a|flac)$/i));
 
         if (audioFiles.length === 0) {
-            alert('No se encontraron canciones en la carpeta seleccionada.');
+            alert('No se encontraron canciones en esta carpeta.');
             return;
         }
 
-        foldersMap = {};
-        audioFiles.forEach((file, index) => {
-            // Extraer el nombre de la carpeta real donde está la canción
+        albumsMap = {};
+        audioFiles.forEach((file, idx) => {
             const parts = (file.webkitRelativePath || file.name).split('/');
-            let folderName = parts.length > 1 ? parts[parts.length - 2] : 'Música Suelta';
+            let folderName = parts.length > 1 ? parts[parts.length - 2] : 'Álbum Único';
 
             const track = {
-                id: index,
+                id: idx,
                 title: file.name.replace(/\.[^/.]+$/, ""),
                 folder: folderName,
                 url: URL.createObjectURL(file)
             };
 
-            if (!foldersMap[folderName]) foldersMap[folderName] = [];
-            foldersMap[folderName].push(track);
+            if (!albumsMap[folderName]) albumsMap[folderName] = [];
+            albumsMap[folderName].push(track);
         });
 
-        renderAlbumsScreen();
-        goToScreen(screen2); // Ir a la 2ª Pantalla (Álbumes)
+        renderAlbums();
+        goToScreen(s2);
     });
 
-    // --- 2ª PANTALLA: MOSTRAR ÁLBUMES / CARPETAS ---
-    function renderAlbumsScreen() {
+    // Render PANTALLA 2 (Álbumes)
+    function renderAlbums() {
         albumsList.innerHTML = '';
-        Object.keys(foldersMap).forEach(folderName => {
-            const tracks = foldersMap[folderName];
+        Object.keys(albumsMap).forEach(folderName => {
+            const tracks = albumsMap[folderName];
             const item = document.createElement('div');
             item.className = 'list-item';
             item.innerHTML = `
-                <div class="album-icon">📁</div>
-                <div class="album-info">
-                    <h4 class="album-title">${folderName}</h4>
-                    <p style="font-size:12px; color:#aaa;">${tracks.length} canciones</p>
+                <div class="album-cover-placeholder">🎵</div>
+                <div class="album-text">
+                    <h4>${folderName}</h4>
+                    <p>${tracks.length} canciones</p>
                 </div>
             `;
             item.addEventListener('click', () => {
-                songsAlbumTitle.textContent = folderName;
-                renderSongsScreen(tracks);
-                goToScreen(screen3); // Ir a la 3ª Pantalla (Canciones)
+                songsHeaderTitle.textContent = "CANCIONES";
+                renderSongs(tracks);
+                goToScreen(s3);
             });
             albumsList.appendChild(item);
         });
     }
 
-    // --- 3ª PANTALLA: MOSTRAR CANCIONES DEL ÁLBUM ---
-    function renderSongsScreen(tracks) {
+    // Render PANTALLA 3 (Canciones)
+    function renderSongs(tracks) {
         songsList.innerHTML = '';
         tracks.forEach(track => {
             const item = document.createElement('div');
             item.className = 'list-item';
             item.innerHTML = `
                 <div class="song-checkbox"></div>
-                <h4 class="song-title">${track.title}</h4>
+                <div class="song-text">
+                    <h4>${track.title}</h4>
+                </div>
             `;
             item.addEventListener('click', () => {
-                playSong(track, tracks);
-                goToScreen(screen4); // Ir a la 4ª Pantalla (Reproductor)
+                playTrack(track, tracks);
+                goToScreen(s4);
             });
             songsList.appendChild(item);
         });
     }
 
-    // --- 4ª PANTALLA: REPRODUCCIÓN Y CONTROLES ---
-    function playSong(track, playlist) {
+    // PANTALLA 4 (Reproductor)
+    function playTrack(track, playlist) {
         currentPlaylist = playlist;
         currentIndex = currentPlaylist.findIndex(t => t.id === track.id);
 
@@ -133,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isPlaying = true;
 
         playerTitle.textContent = track.title;
-        playerArtistAlbum.textContent = track.folder;
+        playerArtistAlbum.textContent = `${track.folder}`;
         btnPlayPause.textContent = '⏸';
     }
 
@@ -153,13 +150,13 @@ document.addEventListener('DOMContentLoaded', () => {
     btnNext.addEventListener('click', () => {
         if (currentPlaylist.length === 0 || currentIndex === -1) return;
         currentIndex = (currentIndex + 1) % currentPlaylist.length;
-        playSong(currentPlaylist[currentIndex], currentPlaylist);
+        playTrack(currentPlaylist[currentIndex], currentPlaylist);
     });
 
     btnPrev.addEventListener('click', () => {
         if (currentPlaylist.length === 0 || currentIndex === -1) return;
         currentIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
-        playSong(currentPlaylist[currentIndex], currentPlaylist);
+        playTrack(currentPlaylist[currentIndex], currentPlaylist);
     });
 
     audioElement.addEventListener('ended', () => btnNext.click());
