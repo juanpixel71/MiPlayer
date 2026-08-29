@@ -23,28 +23,34 @@ jobs:
 
       - name: Preparar proyecto y compilar APK
         run: |
-          # 1. Crear carpeta www y copiar archivos web
+          # 1. Crear carpeta www y copiar archivos de la app
           mkdir -p www
           cp index.html style.css app.js manifest.json www/ 2>/dev/null || true
 
-          # 2. Inicializar NPM y Capacitor
+          # 2. Inicializar Capacitor
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir www
-
-          # 3. Añadir plataforma Android
           npx cap add android
 
-          # 4. Inyectar permisos de lectura de audio/almacenamiento en AndroidManifest.xml
-          MANIFEST_FILE="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" \/>' $MANIFEST_FILE
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" \/>' $MANIFEST_FILE
+          # 3. Inyectar permisos de lectura de almacenamiento de forma segura
+          node -e '
+            const fs = require("fs");
+            const file = "android/app/src/main/AndroidManifest.xml";
+            let content = fs.readFileSync(file, "utf8");
+            const permissions = `
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+            `;
+            content = content.replace("<application", permissions + "\n<application");
+            fs.writeFileSync(file, content, "utf8");
+          '
 
-          # 5. Sincronizar y Compilar APK
+          # 4. Sincronizar y compilar APK
           npx cap copy android
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
       - name: Subir APK como artefacto
         uses: actions/upload-artifact@v4
