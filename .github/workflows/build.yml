@@ -21,7 +21,7 @@ jobs:
           distribution: 'zulu'
           java-version: '21'
 
-      - name: Compilar APK con Icono y Sistema Nativo
+      - name: Compilar APK con Acceso Directo a Almacenamiento
         run: |
           # 1. Preparar carpeta web
           rm -rf www
@@ -29,7 +29,7 @@ jobs:
           cp index.html app.js manifest.json www/ 2>/dev/null || true
           cp icon.png www/ 2>/dev/null || true
 
-          # 2. Inicializar Capacitor con Plugins Nativos
+          # 2. Inicializar Capacitor
           npm init -y
           npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/filesystem@latest
           npx cap init "Mi Musica" "com.juanpixel.mimusica" --web-dir www
@@ -40,9 +40,7 @@ jobs:
             const fs = require("fs");
             const path = require("path");
             const resDir = "android/app/src/main/res";
-            
             if (fs.existsSync("icon.png") && fs.existsSync(resDir)) {
-              // Copiar el PNG a todas las resoluciones
               const mipmaps = fs.readdirSync(resDir).filter(d => d.startsWith("mipmap"));
               mipmaps.forEach(folder => {
                 const targetDir = path.join(resDir, folder);
@@ -50,8 +48,6 @@ jobs:
                 fs.copyFileSync("icon.png", path.join(targetDir, "ic_launcher_round.png"));
                 fs.copyFileSync("icon.png", path.join(targetDir, "ic_launcher_foreground.png"));
               });
-
-              // Borrar los archivos XML adaptativos que tapan el PNG
               const anyDpiDir = path.join(resDir, "mipmap-anydpi-v26");
               if (fs.existsSync(anyDpiDir)) {
                 fs.rmSync(anyDpiDir, { recursive: true, force: true });
@@ -59,7 +55,7 @@ jobs:
             }
           '
 
-          # 4. Inyectar Permisos Nativos de Almacenamiento en Manifest
+          # 4. Inyectar Permisos de Almacenamiento Raíz Nativo
           node -e '
             const fs = require("fs");
             const file = "android/app/src/main/AndroidManifest.xml";
@@ -67,12 +63,11 @@ jobs:
               let content = fs.readFileSync(file, "utf8");
               const permissions = `
                 <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-                <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+                <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
                 <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+                <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
               `;
-              content = content.replace("<application", permissions + "\n<application");
-              // Forzar almacenamiento heredado para lectura de directorios
-              content = content.replace("<application", "<application android:requestLegacyExternalStorage=\"true\"");
+              content = content.replace("<application", permissions + "\n<application android:requestLegacyExternalStorage=\"true\"");
               fs.writeFileSync(file, content, "utf8");
             }
           '
