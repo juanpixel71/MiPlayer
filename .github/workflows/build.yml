@@ -29,9 +29,23 @@ jobs:
           mkdir -p www
           cp -r *.html *.js *.json *.png www/ 2>/dev/null || true
 
-      - name: Add Android Platform
+      - name: Backup Manifest & Generate Fresh Android Platform
         run: |
-          npx cap add android || true
+          # Guardar manifest temporalmente si existe
+          if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
+            cp android/app/src/main/AndroidManifest.xml /tmp/AndroidManifest.xml
+          fi
+          
+          # Limpiar carpeta android vieja para forzar regeneración completa
+          rm -rf android
+          
+          # Generar la plataforma android completa
+          npx cap add android
+          
+          # Restaurar tu Manifest personalizado
+          if [ -f "/tmp/AndroidManifest.xml" ]; then
+            cp /tmp/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          fi
 
       - name: Sync Capacitor project
         run: |
@@ -46,7 +60,8 @@ jobs:
       - name: Build Android APK
         run: |
           cd android
-          gradle assembleDebug
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
