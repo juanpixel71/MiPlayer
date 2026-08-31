@@ -24,17 +24,9 @@ jobs:
         run: |
           npm install
 
-      - name: Add Android Platform (if missing)
+      - name: Add Android Platform
         run: |
           npx cap add android || true
-
-      - name: Inject Permissions into AndroidManifest.xml
-        run: |
-          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST_PATH" ]; then
-            echo "Inyectando permisos en AndroidManifest.xml..."
-            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <uses-permission android:name="android.permission.WAKE_LOCK" />' $MANIFEST_PATH
-          fi
 
       - name: Sync Capacitor project
         run: |
