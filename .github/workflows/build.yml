@@ -31,20 +31,22 @@ jobs:
 
       - name: Backup Manifest & Generate Fresh Android Platform
         run: |
-          # Guardar manifest temporalmente si existe
           if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
             cp android/app/src/main/AndroidManifest.xml /tmp/AndroidManifest.xml
           fi
           
-          # Limpiar carpeta android vieja para forzar regeneración completa
           rm -rf android
-          
-          # Generar la plataforma android completa
           npx cap add android
           
-          # Restaurar tu Manifest personalizado
           if [ -f "/tmp/AndroidManifest.xml" ]; then
             cp /tmp/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+          fi
+
+      - name: Replace Android Icons with Custom icon.png
+        run: |
+          if [ -f "icon.png" ]; then
+            echo "Reemplazando iconos de Android con icon.png..."
+            find android/app/src/main/res/ -name "ic_launcher*.png" -exec cp icon.png {} \;
           fi
 
       - name: Sync Capacitor project
