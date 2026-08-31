@@ -1,0 +1,18 @@
+{
+  "name": "mi-player",
+  "version": "1.0.0",
+  "description": "Reproductor de Música para coche",
+  "main": "index.html",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor/android": "^5.0.0",
+    "@capacitor/cli": "^5.0.0",
+    "@capacitor/core": "^5.0.0",
+    "@capacitor/filesystem": "^5.0.0"
+  }
+}
