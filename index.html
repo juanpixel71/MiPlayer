@@ -113,13 +113,14 @@
             background-color: #282828;
             color: #ffffff;
             border: 1px solid #444;
-            padding: 10px 24px;
-            border-radius: 20px;
-            font-size: 14px;
+            padding: 14px 28px;
+            border-radius: 24px;
+            font-size: 15px;
+            font-weight: bold;
             cursor: pointer;
         }
 
-        /* Estilos específicos del Reproductor */
+        /* Estilos del Reproductor */
         .player-container {
             flex: 1;
             display: flex;
@@ -131,14 +132,14 @@
         }
 
         .player-cover {
-            width: 220px;
-            height: 220px;
+            width: 200px;
+            height: 200px;
             background-color: #222;
             border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 80px;
+            font-size: 70px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
@@ -160,17 +161,17 @@
 
         .progress-bar {
             width: 100%;
-            height: 6px;
+            height: 8px;
             -webkit-appearance: none;
             background: #333;
-            border-radius: 3px;
+            border-radius: 4px;
             outline: none;
         }
 
         .progress-bar::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             background: #00ff66;
             cursor: pointer;
@@ -179,43 +180,51 @@
         .time-stamps {
             display: flex;
             justify-content: space-between;
-            font-size: 12px;
+            font-size: 13px;
             color: #a0a0a0;
             margin-top: 8px;
         }
 
-        /* Controles */
+        /* BOTONES MÁS GRANDES PARA EL COCHE */
         .player-controls {
             display: flex;
             align-items: center;
-            gap: 24px;
+            justify-content: center;
+            gap: 32px;
+            width: 100%;
         }
 
         .btn-ctrl {
-            background: none;
-            border: none;
+            background: #222222;
+            border: 1px solid #333333;
+            border-radius: 50%;
             color: #ffffff;
-            font-size: 28px;
+            font-size: 32px;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            padding: 10px;
         }
 
         .btn-ctrl-main {
-            width: 64px;
-            height: 64px;
+            width: 88px;
+            height: 88px;
             border-radius: 50%;
             background-color: #00ff66;
             color: #000000;
-            font-size: 26px;
+            font-size: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
             border: none;
             cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 255, 102, 0.3);
         }
 
         .btn-ctrl:active, .btn-ctrl-main:active {
-            transform: scale(0.95);
+            transform: scale(0.92);
         }
     </style>
 </head>
@@ -268,7 +277,7 @@
             </div>
         </div>
         <div class="footer">
-            <button class="btn-back-footer">VOLVER A CANCIONES</button>
+            <button class="btn-back-footer" id="btn-back-to-songs">VOLVER A CANCIONES</button>
         </div>
     </div>
 
