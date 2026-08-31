@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Botones Volver
     const btnBackToAlbums = s2.querySelector('.btn-back-footer');
-    const btnBackToSongs = s3.querySelector('.btn-back-footer');
+    const btnBackToSongs = document.getElementById('btn-back-to-songs');
 
     // Listas y títulos
     const albumsList = s1.querySelector('.list-container');
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTimeEl = document.getElementById('current-time');
     const totalDurationEl = document.getElementById('total-duration');
 
-    // Elemento Audio nativo de HTML5
+    // Elemento Audio HTML5
     const audioElement = new Audio();
 
     // Estado global
@@ -41,7 +41,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (btnBackToAlbums) btnBackToAlbums.addEventListener('click', () => goToScreen(s1));
-    if (btnBackToSongs) btnBackToSongs.addEventListener('click', () => goToScreen(s2));
+
+    // BOTÓN VOLVER A CANCIONES: Pausa y limpia totalmente la reproducción
+    if (btnBackToSongs) {
+        btnBackToSongs.addEventListener('click', () => {
+            stopAudio();
+            goToScreen(s2);
+        });
+    }
+
+    function stopAudio() {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+        btnPlayPause.textContent = '▶';
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = "none";
+        }
+    }
 
     initApp();
 
@@ -66,11 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return '';
     }
 
-    // Lectura de la carpeta MiMusica
     async function readAbsolutePath() {
         try {
             const { Filesystem } = window.Capacitor.Plugins;
-
             try { await Filesystem.requestPermissions(); } catch (e) {}
 
             albumsMap = {};
@@ -119,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
 
-                    // ORDENACIÓN DE CANCIONES: Mantener el orden original del archivo (01, 02, 03...)
+                    // ORDENACIÓN DE CANCIONES (01, 02, 03...)
                     if (albumsMap[folderName]) {
                         albumsMap[folderName].sort((a, b) => a.fileName.localeCompare(b.fileName, undefined, { numeric: true, sensitivity: 'base' }));
                     }
@@ -144,11 +158,9 @@ document.addEventListener('DOMContentLoaded', () => {
         renderAlbums();
     }
 
-    // PANTALLA 1: Álbumes (ORDENADOS DE A a Z)
+    // PANTALLA 1: Álbumes (A - Z)
     function renderAlbums() {
         albumsList.innerHTML = '';
-        
-        // Ordenar álbumes de la A a la Z
         const albumKeys = Object.keys(albumsMap).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
         albumKeys.forEach(folderName => {
@@ -171,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // PANTALLA 2: Canciones (Respetando el orden 01, 02, 03...)
+    // PANTALLA 2: Canciones
     function renderSongs(tracks) {
         songsList.innerHTML = '';
         tracks.forEach(track => {
@@ -190,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // PANTALLA 3: Reproductor
+    // PANTALLA 3: Reproductor con MediaSession
     function playTrack(track, playlist) {
         currentPlaylist = playlist;
         currentIndex = currentPlaylist.findIndex(t => t.id === track.id);
@@ -202,9 +214,22 @@ document.addEventListener('DOMContentLoaded', () => {
             audioElement.src = track.url;
             audioElement.play().catch(e => console.log('Error de reproducción:', e));
         }
+
+        // Configuración de la pantalla de bloqueo (MediaSession API)
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: track.title,
+                artist: track.folder,
+                album: track.folder
+            });
+
+            navigator.mediaSession.setActionHandler('play', () => audioElement.play());
+            navigator.mediaSession.setActionHandler('pause', () => audioElement.pause());
+            navigator.mediaSession.setActionHandler('previoustrack', () => btnPrev.click());
+            navigator.mediaSession.setActionHandler('nexttrack', () => btnNext.click());
+        }
     }
 
-    // Formatear segundos a 0:00
     function formatTime(seconds) {
         if (isNaN(seconds) || seconds === Infinity) return "0:00";
         const mins = Math.floor(seconds / 60);
@@ -212,13 +237,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    // Sincronización de eventos de Audio con la Interfaz
     audioElement.addEventListener('play', () => {
         btnPlayPause.textContent = '⏸';
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "playing";
     });
 
     audioElement.addEventListener('pause', () => {
         btnPlayPause.textContent = '▶';
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "paused";
     });
 
     audioElement.addEventListener('timeupdate', () => {
@@ -234,10 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         totalDurationEl.textContent = formatTime(audioElement.duration);
     });
 
-    // Control de la barra de progreso
-    seekBar.addEventListener('input', () => {
-        isSeeking = true;
-    });
+    seekBar.addEventListener('input', () => { isSeeking = true; });
 
     seekBar.addEventListener('change', () => {
         if (audioElement.duration) {
@@ -246,7 +269,6 @@ document.addEventListener('DOMContentLoaded', () => {
         isSeeking = false;
     });
 
-    // Botones de control
     btnPlayPause.addEventListener('click', () => {
         if (!audioElement.src) return;
         if (audioElement.paused) {
@@ -268,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
         playTrack(currentPlaylist[currentIndex], currentPlaylist);
     });
 
-    // Al finalizar la canción, pasar a la siguiente automáticamente
+    // Salto a la siguiente canción automático en segundo plano / pantalla apagada
     audioElement.addEventListener('ended', () => {
         btnNext.click();
     });
