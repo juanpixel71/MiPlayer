@@ -1,25 +1,50 @@
+```css
+/* =========================================
+   BASE
+   ========================================= */
+
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+
     user-select: none;
     -webkit-user-select: none;
 }
 
-body, html {
+html,
+body {
     width: 100%;
     height: 100%;
-    background-color: #121212;
+
+    background: #2b2b2b;
     color: #ffffff;
+
     overflow: hidden;
 }
 
+
+/* =========================================
+   PANTALLAS
+   ========================================= */
+
 .screen {
     display: none;
+
     flex-direction: column;
+
     width: 100%;
     height: 100%;
+
     position: absolute;
     top: 0;
     left: 0;
@@ -29,255 +54,605 @@ body, html {
     display: flex;
 }
 
-/* HEADER Y FOOTER ESTÁNDAR */
+
+/* =========================================
+   HEADER
+   ========================================= */
+
 .app-header {
-    height: 56px;
-    background-color: #1e1e1e;
+    min-height: 60px;
+
+    background: #f07818;
+
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 16px;
-    border-bottom: 1px solid #2a2a2a;
+
+    padding: 10px 16px;
+
+    border-bottom: 1px solid #d8650b;
+
     flex-shrink: 0;
 }
 
 .app-header h1 {
-    font-size: 1.1rem;
-    font-weight: 700;
+    width: 100%;
+
     color: #ffffff;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+
+    font-size: 1.15rem;
+    font-weight: 800;
+
     text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.5px;
+
+    line-height: 1.2;
+
+    /*
+       IMPORTANTE:
+       no usamos white-space: nowrap.
+       Así los nombres largos de álbum pueden
+       ocupar dos líneas sin cortarse.
+    */
+    white-space: normal;
+
+    overflow: visible;
+
+    word-break: break-word;
 }
 
+
+/* =========================================
+   FOOTER
+   ========================================= */
+
 .app-footer {
-    height: 56px;
-    background-color: #1e1e1e;
+    min-height: 56px;
+
+    background: #f07818;
+
     display: flex;
     align-items: center;
     justify-content: center;
-    border-top: 1px solid #2a2a2a;
+
+    border-top: 1px solid #d8650b;
+
     flex-shrink: 0;
 }
 
 .footer-text {
-    color: #888888;
-    font-size: 0.9rem;
-    font-weight: 600;
+    color: #ffffff;
+
+    font-size: 0.92rem;
+    font-weight: 700;
+
+    letter-spacing: 0.3px;
 }
 
-/* BOTÓN VOLVER TIPO LINK EN EL FOOTER */
+
+/* =========================================
+   BOTONES FOOTER
+   ========================================= */
+
 .btn-back-footer {
     width: 100%;
-    height: 100%;
+    height: 56px;
+
     background: transparent;
+
     border: none;
+
     color: #ffffff;
-    font-size: 1rem;
-    font-weight: 700;
+
+    font-size: 0.98rem;
+    font-weight: 800;
+
     display: flex;
+
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    cursor: pointer;
+
+    gap: 9px;
+
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+
+    letter-spacing: 0.4px;
+
+    cursor: pointer;
+
+    -webkit-tap-highlight-color: transparent;
 }
 
 .btn-back-footer:active {
-    background-color: #2a2a2a;
-    color: #1db954;
+    background: rgba(0, 0, 0, 0.12);
 }
 
 .btn-icon {
-    font-size: 0.9rem;
+    font-size: 1rem;
+    line-height: 1;
 }
 
-/* ÁREA DE CONTENIDO CÓN SCROLL */
+
+/* =========================================
+   ÁREA DE CONTENIDO
+   ========================================= */
+
 .content-area {
     flex: 1;
+
     overflow-y: auto;
-    padding: 12px;
+
+    padding: 14px;
+
+    background: #2b2b2b;
+
+    -webkit-overflow-scrolling: touch;
 }
 
-/* PANTALLA 1: QUADRÍCULA DE 2 COLUMNAS (GOOGLE PLAY STYLE) */
+
+/* =========================================
+   PANTALLA 1 - ÁLBUMES
+   ========================================= */
+
 .albums-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 14px;
 }
 
 .album-card {
-    background-color: #1e1e1e;
-    border-radius: 8px;
+    width: 100%;
+
+    padding: 0;
+
+    border: none;
+
+    background: #3a3a3a;
+
+    border-radius: 10px;
+
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
+
     cursor: pointer;
-    border: 1px solid #2a2a2a;
+
+    display: block;
+
+    box-shadow:
+        0 3px 8px rgba(0, 0, 0, 0.20);
+
+    -webkit-tap-highlight-color: transparent;
+
+    transition:
+        transform 0.10s ease,
+        box-shadow 0.10s ease;
 }
 
 .album-card:active {
-    transform: scale(0.98);
-    border-color: #1db954;
+    transform: scale(0.975);
+
+    box-shadow:
+        0 2px 5px rgba(0, 0, 0, 0.18);
 }
+
+
+/* CARÁTULA */
 
 .album-cover-box {
     width: 100%;
+
     aspect-ratio: 1 / 1;
-    background-color: #282828;
+
+    background: #555555;
+
     display: flex;
+
     align-items: center;
     justify-content: center;
+
     overflow: hidden;
 }
 
 .album-cover-img {
     width: 100%;
     height: 100%;
+
+    display: block;
+
     object-fit: cover;
 }
 
+
+/* NOTA MUSICAL CUANDO NO HAY COVER */
+
 .music-note-placeholder {
-    font-size: 3rem;
-    opacity: 0.5;
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    background: #4b4b4b;
+
+    color: #dddddd;
+
+    font-size: 3.4rem;
+
+    opacity: 0.9;
 }
 
-.album-card-title {
-    padding: 10px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #ffffff;
+
+/* SIN ÁLBUMES */
+
+.empty-message {
+    grid-column: 1 / -1;
+
+    padding: 30px 20px;
+
     text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+
+    color: #dddddd;
+
+    font-size: 1rem;
 }
 
-/* PANTALLA 2: LISTA DE CANCIONES */
+
+/*
+   IMPORTANTE:
+   No hay .album-card-title.
+   El nombre del álbum ya NO aparece debajo.
+*/
+
+
+/* =========================================
+   PANTALLA 2 - CANCIONES
+   ========================================= */
+
 .list-container {
     display: flex;
+
     flex-direction: column;
-    gap: 8px;
+
+    gap: 9px;
 }
 
 .list-item {
-    background-color: #1e1e1e;
-    padding: 14px 16px;
-    border-radius: 6px;
+    width: 100%;
+
+    border: 1px solid #555555;
+
+    border-radius: 8px;
+
+    background: #3a3a3a;
+
+    color: #ffffff;
+
+    padding: 15px 16px;
+
     display: flex;
+
     align-items: center;
-    border: 1px solid #2a2a2a;
+
+    text-align: left;
+
     cursor: pointer;
+
+    box-shadow:
+        0 2px 5px rgba(0, 0, 0, 0.14);
+
+    -webkit-tap-highlight-color: transparent;
+
+    transition:
+        background 0.1s ease,
+        transform 0.1s ease;
 }
 
 .list-item:active {
-    background-color: #2a2a2a;
+    background: #464646;
+
+    transform: scale(0.992);
 }
 
-.song-text h4 {
-    font-size: 0.95rem;
-    font-weight: 500;
+.song-text {
+    width: 100%;
+
     color: #ffffff;
+
+    font-size: 1rem;
+
+    font-weight: 600;
+
+    line-height: 1.3;
+
+    word-break: break-word;
 }
 
-/* PANTALLA 3: REPRODUCTOR */
+
+/* =========================================
+   PANTALLA 3 - REPRODUCTOR
+   ========================================= */
+
 .player-layout {
     display: flex;
+
     flex-direction: column;
+
     align-items: center;
-    justify-content: space-around;
-    padding: 16px;
+
+    justify-content: space-between;
+
+    padding: 18px 16px 22px;
 }
 
+
+/* CARÁTULA DEL REPRODUCTOR */
+
 .player-cover-box {
-    width: 220px;
-    height: 220px;
-    max-width: 70vw;
-    max-height: 70vw;
-    background-color: #282828;
+    width: min(72vw, 280px);
+
+    aspect-ratio: 1 / 1;
+
+    background: #4b4b4b;
+
     border-radius: 12px;
+
     display: flex;
+
     align-items: center;
     justify-content: center;
+
     overflow: hidden;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    border: 1px solid #333;
+
+    box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.28);
+
+    border: 1px solid #666666;
+
+    flex-shrink: 0;
 }
 
 .player-cover-img {
     width: 100%;
     height: 100%;
+
+    display: block;
+
     object-fit: cover;
 }
 
+
+/* INFORMACIÓN */
+
 .player-info {
-    text-align: center;
-    margin: 12px 0;
     width: 100%;
+
+    text-align: center;
+
+    margin: 14px 0 8px;
 }
 
 .player-song-title {
-    font-size: 1.1rem;
-    font-weight: 700;
     color: #ffffff;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+
+    font-size: 1.15rem;
+
+    font-weight: 800;
+
+    line-height: 1.25;
+
+    margin-bottom: 5px;
+
+    white-space: normal;
+
+    word-break: break-word;
 }
 
 .player-artist-album {
-    font-size: 0.9rem;
-    color: #b3b3b3;
+    color: #dddddd;
+
+    font-size: 0.95rem;
+
+    line-height: 1.2;
+
+    word-break: break-word;
 }
 
-/* BARRA DE PROGRESO Y TIEMPOS */
+
+/* =========================================
+   BARRA DE PROGRESO
+   ========================================= */
+
 .seek-container {
     width: 100%;
+
     display: flex;
+
     align-items: center;
+
     gap: 10px;
-    margin-bottom: 12px;
+
+    margin-top: 6px;
 }
 
 .seek-container span {
+    width: 40px;
+
+    color: #dddddd;
+
     font-size: 0.8rem;
-    color: #b3b3b3;
-    width: 35px;
+
     text-align: center;
+
+    flex-shrink: 0;
 }
 
-input[type=range] {
+input[type="range"] {
     flex: 1;
-    accent-color: #1db954;
-    height: 4px;
-}
 
-/* CONTROLES DEL REPRODUCTOR */
-.controls-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
     width: 100%;
-}
 
-.btn-ctrl {
-    background: transparent;
-    border: none;
-    color: #ffffff;
-    font-size: 1.8rem;
+    height: 6px;
+
+    accent-color: #f07818;
+
     cursor: pointer;
 }
 
-.btn-ctrl:active {
-    color: #1db954;
+
+/* =========================================
+   CONTROLES DEL REPRODUCTOR
+   ========================================= */
+
+.controls-container {
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 22px;
+
+    margin-top: 8px;
 }
 
-.btn-main {
-    font-size: 2.8rem;
+.btn-ctrl {
+    width: 72px;
+    height: 72px;
+
+    border: none;
+
+    border-radius: 50%;
+
+    background: #444444;
+
+    color: #ffffff;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    cursor: pointer;
+
+    font-size: 2.6rem;
+
+    line-height: 1;
+
+    box-shadow:
+        0 4px 9px rgba(0, 0, 0, 0.22);
+
+    -webkit-tap-highlight-color: transparent;
+
+    transition:
+        transform 0.10s ease,
+        background 0.10s ease;
 }
+
+.btn-ctrl:active {
+    transform: scale(0.93);
+
+    background: #555555;
+}
+
+
+/* =========================================
+   PLAY / PAUSE
+   ========================================= */
+
+.btn-main {
+    width: 88px;
+    height: 88px;
+
+    background: #f07818;
+
+    font-size: 0;
+
+    box-shadow:
+        0 5px 12px rgba(0, 0, 0, 0.25);
+}
+
+.btn-main:active {
+    background: #d9680e;
+}
+
+
+/*
+   El icono se dibuja mediante CSS.
+   Así Play y Pause ocupan exactamente
+   el mismo espacio y no hay el pequeño
+   "salto" visual que había antes.
+*/
+
+.play-pause-icon::before {
+    content: "▶";
+
+    display: block;
+
+    color: #ffffff;
+
+    font-size: 2.65rem;
+
+    line-height: 1;
+}
+
+.btn-main.is-playing
+.play-pause-icon::before {
+    content: "⏸";
+
+    font-size: 2.45rem;
+}
+
+
+/* =========================================
+   ADAPTACIÓN A MÓVILES PEQUEÑOS
+   ========================================= */
+
+@media (max-width: 360px) {
+
+    .content-area {
+        padding: 11px;
+    }
+
+    .albums-grid {
+        gap: 10px;
+    }
+
+    .controls-container {
+        gap: 13px;
+    }
+
+    .btn-ctrl {
+        width: 64px;
+        height: 64px;
+
+        font-size: 2.25rem;
+    }
+
+    .btn-main {
+        width: 78px;
+        height: 78px;
+    }
+
+    .play-pause-icon::before {
+        font-size: 2.3rem;
+    }
+
+    .btn-main.is-playing
+    .play-pause-icon::before {
+        font-size: 2.1rem;
+    }
+
+    .player-cover-box {
+        width: min(68vw, 240px);
+    }
+}
+```
