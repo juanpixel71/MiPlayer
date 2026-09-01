@@ -1,75 +1,185 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, user-scalable=no"
+    >
+
     <title>MiPlayer</title>
+
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
 
-    <!-- PANTALLA 1: ÁLBUMES -->
+    <!-- ================================= -->
+    <!-- PANTALLA 1: MIS ÁLBUMES -->
+    <!-- ================================= -->
     <section id="screen-albums" class="screen active">
+
         <header class="app-header">
             <h1>MIS ÁLBUMES</h1>
         </header>
+
         <main class="content-area">
             <div class="albums-grid"></div>
         </main>
+
         <footer class="app-footer">
-            <span class="footer-text">MiPlayer v1.00</span>
+            <span class="footer-text">
+                MiPlayer v1.00
+            </span>
         </footer>
+
     </section>
 
-    <!-- PANTALLA 2: CANCIONES DE UN ÁLBUM -->
+
+    <!-- ================================= -->
+    <!-- PANTALLA 2: CANCIONES -->
+    <!-- ================================= -->
     <section id="screen-songs" class="screen">
+
         <header class="app-header">
-            <h1 id="songs-header-title">NOMBRE DEL ÁLBUM</h1>
+            <h1 id="songs-header-title">
+                NOMBRE DEL ÁLBUM
+            </h1>
         </header>
+
         <main class="content-area">
             <div class="list-container"></div>
         </main>
+
         <footer class="app-footer">
-            <button id="btn-back-to-albums" class="btn-back-footer">
-                <span class="btn-icon">◄</span> VOLVER A ÁLBUMES
+            <button
+                id="btn-back-to-albums"
+                class="btn-back-footer"
+                type="button"
+            >
+                <span class="btn-icon">◄</span>
+                <span>VOLVER A ÁLBUMES</span>
             </button>
         </footer>
+
     </section>
 
+
+    <!-- ================================= -->
     <!-- PANTALLA 3: REPRODUCTOR -->
+    <!-- ================================= -->
     <section id="screen-player" class="screen">
+
         <header class="app-header">
             <h1>REPRODUCIENDO</h1>
         </header>
+
         <main class="content-area player-layout">
-            <div id="player-cover" class="player-cover-box">
-                <div class="music-note-placeholder">🎵</div>
+
+            <!-- CARÁTULA -->
+            <div
+                id="player-cover"
+                class="player-cover-box"
+            >
+                <div class="music-note-placeholder">
+                    🎵
+                </div>
             </div>
 
+
+            <!-- INFORMACIÓN DE LA CANCIÓN -->
             <div class="player-info">
-                <h2 class="player-song-title">Título de la Canción</h2>
-                <p class="player-artist-album">Nombre del Álbum</p>
+
+                <h2 class="player-song-title">
+                    Título de la Canción
+                </h2>
+
+                <p class="player-artist-album">
+                    Nombre del Álbum
+                </p>
+
             </div>
 
+
+            <!-- BARRA DE PROGRESO -->
             <div class="seek-container">
-                <span id="current-time">0:00</span>
-                <input type="range" id="seek-bar" value="0" min="0" max="100">
-                <span id="total-duration">0:00</span>
+
+                <span id="current-time">
+                    0:00
+                </span>
+
+                <input
+                    type="range"
+                    id="seek-bar"
+                    value="0"
+                    min="0"
+                    max="100"
+                    aria-label="Posición de reproducción"
+                >
+
+                <span id="total-duration">
+                    0:00
+                </span>
+
             </div>
 
+
+            <!-- CONTROLES -->
             <div class="controls-container">
-                <button id="btn-prev" class="btn-ctrl">⏮</button>
-                <button id="btn-play-pause" class="btn-ctrl btn-main">▶</button>
-                <button id="btn-next" class="btn-ctrl">⏭</button>
+
+                <button
+                    id="btn-prev"
+                    class="btn-ctrl"
+                    type="button"
+                    aria-label="Canción anterior"
+                >
+                    <span>⏮</span>
+                </button>
+
+
+                <button
+                    id="btn-play-pause"
+                    class="btn-ctrl btn-main"
+                    type="button"
+                    aria-label="Reproducir"
+                >
+                    <span class="play-pause-icon"></span>
+                </button>
+
+
+                <button
+                    id="btn-next"
+                    class="btn-ctrl"
+                    type="button"
+                    aria-label="Canción siguiente"
+                >
+                    <span>⏭</span>
+                </button>
+
             </div>
+
         </main>
+
+
         <footer class="app-footer">
-            <button id="btn-back-to-songs" class="btn-back-footer">
-                <span class="btn-icon">◄</span> VOLVER A CANCIONES
+
+            <button
+                id="btn-back-to-songs"
+                class="btn-back-footer"
+                type="button"
+            >
+                <span class="btn-icon">◄</span>
+                <span>VOLVER A CANCIONES</span>
             </button>
+
         </footer>
+
     </section>
 
+
     <script src="app.js"></script>
+
 </body>
 </html>
+```
