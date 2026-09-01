@@ -27,11 +27,10 @@ jobs:
       - name: Prepare Web Assets
         run: |
           mkdir -p www
-          cp -r *.html *.js *.json *.png www/ 2>/dev/null || true
+          cp -r *.html *.js *.css *.json *.png www/ 2>/dev/null || true
 
       - name: Backup Custom Android Files & Generate Platform
         run: |
-          # Crear copias de seguridad de Manifest y Java si existen
           mkdir -p /tmp/android_backup
           if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
             cp android/app/src/main/AndroidManifest.xml /tmp/android_backup/
@@ -40,11 +39,9 @@ jobs:
             cp -r android/app/src/main/java /tmp/android_backup/
           fi
           
-          # Regenerar plataforma Android
           rm -rf android
           npx cap add android
           
-          # Restaurar los archivos respaldados
           if [ -f "/tmp/android_backup/AndroidManifest.xml" ]; then
             cp /tmp/android_backup/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
           fi
