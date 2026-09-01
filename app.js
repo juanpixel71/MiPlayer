@@ -4,16 +4,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const s2 = document.getElementById('screen-songs');
     const s3 = document.getElementById('screen-player');
 
-    // Botones Volver
-    const btnBackToAlbums = s2.querySelector('.btn-back-footer');
+    // Botones Volver (Footer de Pantalla 2 y 3)
+    const btnBackToAlbums = document.getElementById('btn-back-to-albums');
     const btnBackToSongs = document.getElementById('btn-back-to-songs');
 
     // Listas y títulos
-    const albumsList = s1.querySelector('.list-container');
+    const albumsList = s1.querySelector('.albums-grid');
     const songsList = s2.querySelector('.list-container');
     const songsHeaderTitle = document.getElementById('songs-header-title');
 
-    // Controles del reproductor
+    // Elementos del Reproductor (Pantalla 3)
+    const playerCover = document.getElementById('player-cover');
     const playerTitle = s3.querySelector('.player-song-title');
     const playerArtistAlbum = s3.querySelector('.player-artist-album');
     const btnPrev = document.getElementById('btn-prev');
@@ -33,16 +34,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let isSeeking = false;
 
     const TARGET_PATH = '/storage/emulated/0/MiMusica';
+    const DEFAULT_COVER = '<div class="music-note-placeholder">🎵</div>';
 
-    // Navegación entre pantallas
     function goToScreen(targetScreen) {
         [s1, s2, s3].forEach(s => s.classList.remove('active'));
         targetScreen.classList.add('active');
     }
 
-    if (btnBackToAlbums) btnBackToAlbums.addEventListener('click', () => goToScreen(s1));
+    if (btnBackToAlbums) {
+        btnBackToAlbums.addEventListener('click', () => goToScreen(s1));
+    }
 
-    // BOTÓN VOLVER A CANCIONES: Pausa y limpia totalmente la reproducción
     if (btnBackToSongs) {
         btnBackToSongs.addEventListener('click', () => {
             stopAudio();
@@ -62,10 +64,24 @@ document.addEventListener('DOMContentLoaded', () => {
     initApp();
 
     async function initApp() {
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
+        if (window.Capacitor && window.Capacitor.Plugins) {
+            await requestAppPermissions();
             await readAbsolutePath();
         } else {
             renderDemoData();
+        }
+    }
+
+    async function requestAppPermissions() {
+        const { Filesystem } = window.Capacitor.Plugins;
+        try {
+            if (Filesystem && Filesystem.requestPermissions) {
+                await Filesystem.requestPermissions();
+            }
+        } catch (e) { console.log('Error pidiendo permisos filesystem'); }
+
+        if ('Notification' in window && Notification.permission !== 'granted') {
+            try { await Notification.requestPermission(); } catch (e) {}
         }
     }
 
@@ -85,15 +101,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function readAbsolutePath() {
         try {
             const { Filesystem } = window.Capacitor.Plugins;
-            try { await Filesystem.requestPermissions(); } catch (e) {}
-
             albumsMap = {};
             let globalIdx = 0;
 
             const rootDir = await Filesystem.readdir({ path: TARGET_PATH }).catch(() => null);
 
             if (!rootDir || !rootDir.files || rootDir.files.length === 0) {
-                albumsList.innerHTML = `<p style="padding:20px; text-align:center; color:#aaa;">No se encontraron álbumes.</p>`;
+                albumsList.innerHTML = `<p style="grid-column: 1/-1; padding:20px; text-align:center; color:#aaa;">No se encontraron álbumes.</p>`;
                 return;
             }
 
@@ -113,29 +127,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (subDir && subDir.files && subDir.files.length > 0) {
+                    let coverUrl = null;
+                    const tracks = [];
+
                     subDir.files.forEach(fileInfo => {
                         const fileName = parseItemName(fileInfo);
-                        if (fileName && !fileName.startsWith('.')) {
-                            const rawFilePath = (typeof fileInfo === 'object' && fileInfo.uri) 
-                                ? fileInfo.uri 
-                                : `${cleanFolderPath}/${fileName}`;
+                        if (!fileName || fileName.startsWith('.')) return;
 
-                            const track = {
+                        const rawFilePath = (typeof fileInfo === 'object' && fileInfo.uri)
+                            ? fileInfo.uri
+                            : `${cleanFolderPath}/${fileName}`;
+
+                        // Detectar cover.jpg / cover.jpeg / cover.png
+                        if (fileName.toLowerCase() === 'cover.jpg' || fileName.toLowerCase() === 'cover.jpeg' || fileName.toLowerCase() === 'cover.png') {
+                            coverUrl = window.Capacitor.convertFileSrc(rawFilePath);
+                        } else if (fileName.match(/\.(mp3|flac|wav|m4a|ogg)$/i)) {
+                            tracks.push({
                                 id: globalIdx++,
                                 title: fileName.replace(/\.[^/.]+$/, ""),
                                 fileName: fileName,
                                 folder: folderName,
                                 url: window.Capacitor.convertFileSrc(rawFilePath)
-                            };
-
-                            if (!albumsMap[folderName]) albumsMap[folderName] = [];
-                            albumsMap[folderName].push(track);
+                            });
                         }
                     });
 
-                    // ORDENACIÓN DE CANCIONES (01, 02, 03...)
-                    if (albumsMap[folderName]) {
-                        albumsMap[folderName].sort((a, b) => a.fileName.localeCompare(b.fileName, undefined, { numeric: true, sensitivity: 'base' }));
+                    if (tracks.length > 0) {
+                        tracks.sort((a, b) => a.fileName.localeCompare(b.fileName, undefined, { numeric: true, sensitivity: 'base' }));
+
+                        albumsMap[folderName] = {
+                            cover: coverUrl,
+                            tracks: tracks
+                        };
                     }
                 }
             }
@@ -150,43 +173,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderDemoData() {
         albumsMap = {
-            "Álbum Ejemplo": [
-                { id: 1, title: "01 - Canción 1", fileName: "01 - Canción 1.mp3", folder: "Álbum Ejemplo", url: "" },
-                { id: 2, title: "02 - Canción 2", fileName: "02 - Canción 2.mp3", folder: "Álbum Ejemplo", url: "" }
-            ]
+            "Álbum Ejemplo": {
+                cover: null,
+                tracks: [
+                    { id: 1, title: "01 - Canción 1", fileName: "01 - Canción 1.mp3", folder: "Álbum Ejemplo", url: "" },
+                    { id: 2, title: "02 - Canción 2", fileName: "02 - Canción 2.mp3", folder: "Álbum Ejemplo", url: "" }
+                ]
+            }
         };
         renderAlbums();
     }
 
-    // PANTALLA 1: Álbumes (A - Z)
+    // PANTALLA 1: Álbumes (2 columnas, A-Z)
     function renderAlbums() {
         albumsList.innerHTML = '';
         const albumKeys = Object.keys(albumsMap).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
         albumKeys.forEach(folderName => {
-            const tracks = albumsMap[folderName];
+            const albumData = albumsMap[folderName];
             const item = document.createElement('div');
-            item.className = 'list-item';
+            item.className = 'album-card';
+
+            const coverHTML = albumData.cover
+                ? `<img src="${albumData.cover}" class="album-cover-img" alt="Cover" />`
+                : DEFAULT_COVER;
+
             item.innerHTML = `
-                <div class="album-cover-placeholder">🎵</div>
-                <div class="album-text">
-                    <h4>${folderName}</h4>
-                    <p>${tracks.length} canción${tracks.length === 1 ? '' : 'es'}</p>
+                <div class="album-cover-box">
+                    ${coverHTML}
                 </div>
+                <div class="album-card-title">${folderName}</div>
             `;
+
             item.addEventListener('click', () => {
                 songsHeaderTitle.textContent = folderName;
-                renderSongs(tracks);
+                renderSongs(albumData);
                 goToScreen(s2);
             });
             albumsList.appendChild(item);
         });
     }
 
-    // PANTALLA 2: Canciones
-    function renderSongs(tracks) {
+    // PANTALLA 2: Canciones del Álbum
+    function renderSongs(albumData) {
         songsList.innerHTML = '';
-        tracks.forEach(track => {
+        albumData.tracks.forEach(track => {
             const item = document.createElement('div');
             item.className = 'list-item';
             item.innerHTML = `
@@ -195,27 +226,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             item.addEventListener('click', () => {
-                playTrack(track, tracks);
+                playTrack(track, albumData);
                 goToScreen(s3);
             });
             songsList.appendChild(item);
         });
     }
 
-    // PANTALLA 3: Reproductor con MediaSession
-    function playTrack(track, playlist) {
-        currentPlaylist = playlist;
+    // PANTALLA 3: Reproductor
+    function playTrack(track, albumData) {
+        currentPlaylist = albumData.tracks;
         currentIndex = currentPlaylist.findIndex(t => t.id === track.id);
 
         playerTitle.textContent = track.title;
         playerArtistAlbum.textContent = track.folder;
+
+        // Actualizar la carátula en el reproductor (cover.jpg o nota musical)
+        if (albumData.cover) {
+            playerCover.innerHTML = `<img src="${albumData.cover}" class="player-cover-img" alt="Cover" />`;
+        } else {
+            playerCover.innerHTML = DEFAULT_COVER;
+        }
 
         if (track.url) {
             audioElement.src = track.url;
             audioElement.play().catch(e => console.log('Error de reproducción:', e));
         }
 
-        // Configuración de la pantalla de bloqueo (MediaSession API)
         if ('mediaSession' in navigator) {
             navigator.mediaSession.metadata = new MediaMetadata({
                 title: track.title,
@@ -281,16 +318,15 @@ document.addEventListener('DOMContentLoaded', () => {
     btnNext.addEventListener('click', () => {
         if (currentPlaylist.length === 0 || currentIndex === -1) return;
         currentIndex = (currentIndex + 1) % currentPlaylist.length;
-        playTrack(currentPlaylist[currentIndex], currentPlaylist);
+        playTrack(currentPlaylist[currentIndex], albumsMap[currentPlaylist[currentIndex].folder]);
     });
 
     btnPrev.addEventListener('click', () => {
         if (currentPlaylist.length === 0 || currentIndex === -1) return;
         currentIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
-        playTrack(currentPlaylist[currentIndex], currentPlaylist);
+        playTrack(currentPlaylist[currentIndex], albumsMap[currentPlaylist[currentIndex].folder]);
     });
 
-    // Salto a la siguiente canción automático en segundo plano / pantalla apagada
     audioElement.addEventListener('ended', () => {
         btnNext.click();
     });
