@@ -1,19 +1,28 @@
+```javascript
 document.addEventListener('DOMContentLoaded', () => {
-    // Pantallas
+    // =========================
+    // PANTALLAS
+    // =========================
     const s1 = document.getElementById('screen-albums');
     const s2 = document.getElementById('screen-songs');
     const s3 = document.getElementById('screen-player');
 
-    // Botones Volver (Footer de Pantalla 2 y 3)
+    // =========================
+    // BOTONES VOLVER
+    // =========================
     const btnBackToAlbums = document.getElementById('btn-back-to-albums');
     const btnBackToSongs = document.getElementById('btn-back-to-songs');
 
-    // Listas y títulos
+    // =========================
+    // LISTAS Y TÍTULOS
+    // =========================
     const albumsList = s1.querySelector('.albums-grid');
     const songsList = s2.querySelector('.list-container');
     const songsHeaderTitle = document.getElementById('songs-header-title');
 
-    // Elementos del Reproductor (Pantalla 3)
+    // =========================
+    // ELEMENTOS DEL REPRODUCTOR
+    // =========================
     const playerCover = document.getElementById('player-cover');
     const playerTitle = s3.querySelector('.player-song-title');
     const playerArtistAlbum = s3.querySelector('.player-artist-album');
@@ -24,27 +33,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentTimeEl = document.getElementById('current-time');
     const totalDurationEl = document.getElementById('total-duration');
 
-    // Elemento Audio HTML5
+    // =========================
+    // AUDIO
+    // =========================
     const audioElement = new Audio();
 
-    // Estado global
+    // =========================
+    // ESTADO GLOBAL
+    // =========================
     let albumsMap = {};
     let currentPlaylist = [];
     let currentIndex = -1;
     let isSeeking = false;
 
     const TARGET_PATH = '/storage/emulated/0/MiMusica';
-    const DEFAULT_COVER = '<div class="music-note-placeholder">🎵</div>';
+    const DEFAULT_COVER = `
+        <div class="music-note-placeholder" aria-label="Sin carátula">
+            🎵
+        </div>
+    `;
 
+    // =========================
+    // NAVEGACIÓN
+    // =========================
     function goToScreen(targetScreen) {
-        [s1, s2, s3].forEach(s => s.classList.remove('active'));
+        [s1, s2, s3].forEach(screen => {
+            screen.classList.remove('active');
+        });
+
         targetScreen.classList.add('active');
     }
 
+    // =========================
+    // FOOTER VOLVER A ÁLBUMES
+    // =========================
     if (btnBackToAlbums) {
-        btnBackToAlbums.addEventListener('click', () => goToScreen(s1));
+        btnBackToAlbums.addEventListener('click', () => {
+            goToScreen(s1);
+        });
     }
 
+    // =========================
+    // FOOTER VOLVER A CANCIONES
+    // =========================
     if (btnBackToSongs) {
         btnBackToSongs.addEventListener('click', () => {
             stopAudio();
@@ -52,15 +83,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // =========================
+    // PARAR AUDIO
+    // =========================
     function stopAudio() {
         audioElement.pause();
         audioElement.currentTime = 0;
-        btnPlayPause.textContent = '▶';
+
+        setPlayPauseState(false);
+
         if ('mediaSession' in navigator) {
-            navigator.mediaSession.playbackState = "none";
+            navigator.mediaSession.playbackState = 'none';
         }
     }
 
+    // =========================
+    // ESTADO DEL BOTÓN PLAY/PAUSE
+    // Usamos una clase CSS para evitar
+    // el pequeño "salto" visual entre ▶ y ⏸
+    // =========================
+    function setPlayPauseState(isPlaying) {
+        if (!btnPlayPause) return;
+
+        btnPlayPause.classList.toggle('is-playing', isPlaying);
+        btnPlayPause.setAttribute(
+            'aria-label',
+            isPlaying ? 'Pausar' : 'Reproducir'
+        );
+    }
+
+    // =========================
+    // INICIO DE LA APP
+    // =========================
     initApp();
 
     async function initApp() {
@@ -72,262 +126,598 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // =========================
+    // PERMISOS
+    // =========================
     async function requestAppPermissions() {
         const { Filesystem } = window.Capacitor.Plugins;
+
         try {
             if (Filesystem && Filesystem.requestPermissions) {
                 await Filesystem.requestPermissions();
             }
-        } catch (e) { console.log('Error pidiendo permisos filesystem'); }
+        } catch (e) {
+            console.log('Error pidiendo permisos de filesystem:', e);
+        }
 
         if ('Notification' in window && Notification.permission !== 'granted') {
-            try { await Notification.requestPermission(); } catch (e) {}
+            try {
+                await Notification.requestPermission();
+            } catch (e) {
+                console.log('Permiso de notificaciones no disponible');
+            }
         }
     }
 
+    // =========================
+    // OBTENER NOMBRE DE UN ITEM
+    // =========================
     function parseItemName(item) {
         if (!item) return '';
-        if (typeof item === 'string') return decodeURIComponent(item);
-        if (item.name) return item.name;
+
+        if (typeof item === 'string') {
+            try {
+                return decodeURIComponent(item);
+            } catch (e) {
+                return item;
+            }
+        }
+
+        if (item.name) {
+            return item.name;
+        }
+
         if (item.uri || item.path) {
             const rawPath = item.uri || item.path;
-            const decoded = decodeURIComponent(rawPath);
-            const parts = decoded.split('/');
-            return parts[parts.length - 1] || parts[parts.length - 2];
+
+            try {
+                const decoded = decodeURIComponent(rawPath);
+                const parts = decoded.split('/');
+                return parts[parts.length - 1] || parts[parts.length - 2] || '';
+            } catch (e) {
+                const parts = rawPath.split('/');
+                return parts[parts.length - 1] || '';
+            }
         }
+
         return '';
     }
 
+    // =========================
+    // LEER COVER.JPG
+    //
+    // En lugar de usar convertFileSrc()
+    // para la imagen, la leemos directamente
+    // como Base64. Esto evita problemas del
+    // WebView con rutas externas de Android.
+    // =========================
+    async function loadCoverImage(Filesystem, coverPath) {
+        try {
+            const result = await Filesystem.readFile({
+                path: coverPath
+            });
+
+            if (!result || !result.data) {
+                return null;
+            }
+
+            return `data:image/jpeg;base64,${result.data}`;
+        } catch (error) {
+            console.log('No se pudo leer cover.jpg:', coverPath, error);
+            return null;
+        }
+    }
+
+    // =========================
+    // LEER MÚSICA Y ÁLBUMES
+    // =========================
     async function readAbsolutePath() {
         try {
             const { Filesystem } = window.Capacitor.Plugins;
+
             albumsMap = {};
             let globalIdx = 0;
 
-            const rootDir = await Filesystem.readdir({ path: TARGET_PATH }).catch(() => null);
+            const rootDir = await Filesystem
+                .readdir({ path: TARGET_PATH })
+                .catch(() => null);
 
             if (!rootDir || !rootDir.files || rootDir.files.length === 0) {
-                albumsList.innerHTML = `<p style="grid-column: 1/-1; padding:20px; text-align:center; color:#aaa;">No se encontraron álbumes.</p>`;
+                albumsList.innerHTML = `
+                    <p class="empty-message">
+                        No se encontraron álbumes.
+                    </p>
+                `;
                 return;
             }
 
             for (const item of rootDir.files) {
                 const folderName = parseItemName(item);
-                if (!folderName) continue;
+
+                if (!folderName || folderName.startsWith('.')) {
+                    continue;
+                }
 
                 const cleanFolderPath = `${TARGET_PATH}/${folderName}`;
                 let subDir = null;
 
                 try {
-                    subDir = await Filesystem.readdir({ path: cleanFolderPath });
+                    subDir = await Filesystem.readdir({
+                        path: cleanFolderPath
+                    });
                 } catch (e1) {
                     if (typeof item === 'object' && item.uri) {
-                        try { subDir = await Filesystem.readdir({ path: item.uri }); } catch (e2) {}
+                        try {
+                            subDir = await Filesystem.readdir({
+                                path: item.uri
+                            });
+                        } catch (e2) {
+                            console.log(
+                                'No se pudo abrir la carpeta:',
+                                folderName
+                            );
+                        }
                     }
                 }
 
-                if (subDir && subDir.files && subDir.files.length > 0) {
-                    let coverUrl = null;
-                    const tracks = [];
+                if (!subDir || !subDir.files || subDir.files.length === 0) {
+                    continue;
+                }
 
-                    subDir.files.forEach(fileInfo => {
-                        const fileName = parseItemName(fileInfo);
-                        if (!fileName || fileName.startsWith('.')) return;
+                let coverUrl = null;
+                const tracks = [];
 
-                        const rawFilePath = (typeof fileInfo === 'object' && fileInfo.uri)
-                            ? fileInfo.uri
-                            : `${cleanFolderPath}/${fileName}`;
+                // -------------------------------------
+                // Buscar cover.jpg y archivos de audio
+                // -------------------------------------
+                for (const fileInfo of subDir.files) {
+                    const fileName = parseItemName(fileInfo);
 
-                        // Detectar cover.jpg / cover.jpeg / cover.png
-                        if (fileName.toLowerCase() === 'cover.jpg' || fileName.toLowerCase() === 'cover.jpeg' || fileName.toLowerCase() === 'cover.png') {
-                            coverUrl = window.Capacitor.convertFileSrc(rawFilePath);
-                        } else if (fileName.match(/\.(mp3|flac|wav|m4a|ogg)$/i)) {
-                            tracks.push({
-                                id: globalIdx++,
-                                title: fileName.replace(/\.[^/.]+$/, ""),
-                                fileName: fileName,
-                                folder: folderName,
-                                url: window.Capacitor.convertFileSrc(rawFilePath)
-                            });
-                        }
-                    });
-
-                    if (tracks.length > 0) {
-                        tracks.sort((a, b) => a.fileName.localeCompare(b.fileName, undefined, { numeric: true, sensitivity: 'base' }));
-
-                        albumsMap[folderName] = {
-                            cover: coverUrl,
-                            tracks: tracks
-                        };
+                    if (!fileName || fileName.startsWith('.')) {
+                        continue;
                     }
+
+                    const lowerName = fileName.toLowerCase();
+
+                    let rawFilePath;
+
+                    if (typeof fileInfo === 'object' && fileInfo.uri) {
+                        rawFilePath = fileInfo.uri;
+                    } else {
+                        rawFilePath = `${cleanFolderPath}/${fileName}`;
+                    }
+
+                    // COVER.JPG
+                    if (lowerName === 'cover.jpg') {
+                        coverUrl = await loadCoverImage(
+                            Filesystem,
+                            rawFilePath
+                        );
+
+                        continue;
+                    }
+
+                    // ARCHIVOS DE AUDIO
+                    if (/\.(mp3|flac|wav|m4a|ogg)$/i.test(fileName)) {
+                        tracks.push({
+                            id: globalIdx++,
+                            title: fileName.replace(/\.[^/.]+$/, ''),
+                            fileName: fileName,
+                            folder: folderName,
+                            url: window.Capacitor.convertFileSrc(rawFilePath)
+                        });
+                    }
+                }
+
+                // -------------------------------------
+                // Solo consideramos álbumes con canciones
+                // -------------------------------------
+                if (tracks.length > 0) {
+                    tracks.sort((a, b) =>
+                        a.fileName.localeCompare(
+                            b.fileName,
+                            undefined,
+                            {
+                                numeric: true,
+                                sensitivity: 'base'
+                            }
+                        )
+                    );
+
+                    albumsMap[folderName] = {
+                        cover: coverUrl,
+                        tracks: tracks
+                    };
                 }
             }
 
             renderAlbums();
 
         } catch (err) {
-            console.error('Error general:', err);
+            console.error('Error general leyendo MiMusica:', err);
             renderDemoData();
         }
     }
 
+    // =========================
+    // DATOS DE DEMOSTRACIÓN
+    // =========================
     function renderDemoData() {
         albumsMap = {
-            "Álbum Ejemplo": {
+            'Álbum Ejemplo': {
                 cover: null,
                 tracks: [
-                    { id: 1, title: "01 - Canción 1", fileName: "01 - Canción 1.mp3", folder: "Álbum Ejemplo", url: "" },
-                    { id: 2, title: "02 - Canción 2", fileName: "02 - Canción 2.mp3", folder: "Álbum Ejemplo", url: "" }
+                    {
+                        id: 1,
+                        title: '01 - Canción 1',
+                        fileName: '01 - Canción 1.mp3',
+                        folder: 'Álbum Ejemplo',
+                        url: ''
+                    },
+                    {
+                        id: 2,
+                        title: '02 - Canción 2',
+                        fileName: '02 - Canción 2.mp3',
+                        folder: 'Álbum Ejemplo',
+                        url: ''
+                    }
                 ]
             }
         };
+
         renderAlbums();
     }
 
-    // PANTALLA 1: Álbumes (2 columnas, A-Z)
+    // =========================
+    // PANTALLA 1: ÁLBUMES
+    // 2 COLUMNAS - A/Z
+    // SIN TEXTO DEBAJO
+    // =========================
     function renderAlbums() {
         albumsList.innerHTML = '';
-        const albumKeys = Object.keys(albumsMap).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+        const albumKeys = Object.keys(albumsMap).sort((a, b) =>
+            a.localeCompare(
+                b,
+                undefined,
+                {
+                    sensitivity: 'base'
+                }
+            )
+        );
+
+        if (albumKeys.length === 0) {
+            albumsList.innerHTML = `
+                <p class="empty-message">
+                    No se encontraron álbumes.
+                </p>
+            `;
+            return;
+        }
 
         albumKeys.forEach(folderName => {
             const albumData = albumsMap[folderName];
-            const item = document.createElement('div');
+
+            const item = document.createElement('button');
+            item.type = 'button';
             item.className = 'album-card';
+            item.setAttribute(
+                'aria-label',
+                `Abrir álbum ${folderName}`
+            );
 
-            const coverHTML = albumData.cover
-                ? `<img src="${albumData.cover}" class="album-cover-img" alt="Cover" />`
-                : DEFAULT_COVER;
+            const coverBox = document.createElement('div');
+            coverBox.className = 'album-cover-box';
 
-            item.innerHTML = `
-                <div class="album-cover-box">
-                    ${coverHTML}
-                </div>
-                <div class="album-card-title">${folderName}</div>
-            `;
+            if (albumData.cover) {
+                const img = document.createElement('img');
+
+                img.src = albumData.cover;
+                img.className = 'album-cover-img';
+                img.alt = folderName;
+                img.loading = 'lazy';
+
+                img.addEventListener('error', () => {
+                    coverBox.innerHTML = DEFAULT_COVER;
+                });
+
+                coverBox.appendChild(img);
+            } else {
+                coverBox.innerHTML = DEFAULT_COVER;
+            }
+
+            // SOLO LA CARÁTULA.
+            // No mostramos el nombre del álbum debajo.
+            item.appendChild(coverBox);
 
             item.addEventListener('click', () => {
                 songsHeaderTitle.textContent = folderName;
                 renderSongs(albumData);
                 goToScreen(s2);
             });
+
             albumsList.appendChild(item);
         });
     }
 
-    // PANTALLA 2: Canciones del Álbum
+    // =========================
+    // PANTALLA 2: CANCIONES
+    // =========================
     function renderSongs(albumData) {
         songsList.innerHTML = '';
+
         albumData.tracks.forEach(track => {
-            const item = document.createElement('div');
+            const item = document.createElement('button');
+
+            item.type = 'button';
             item.className = 'list-item';
-            item.innerHTML = `
-                <div class="song-text">
-                    <h4>${track.title}</h4>
-                </div>
-            `;
+
+            const text = document.createElement('span');
+            text.className = 'song-text';
+            text.textContent = track.title;
+
+            item.appendChild(text);
+
             item.addEventListener('click', () => {
                 playTrack(track, albumData);
                 goToScreen(s3);
             });
+
             songsList.appendChild(item);
         });
     }
 
-    // PANTALLA 3: Reproductor
+    // =========================
+    // PANTALLA 3: REPRODUCTOR
+    // =========================
     function playTrack(track, albumData) {
         currentPlaylist = albumData.tracks;
-        currentIndex = currentPlaylist.findIndex(t => t.id === track.id);
+
+        currentIndex = currentPlaylist.findIndex(
+            t => t.id === track.id
+        );
 
         playerTitle.textContent = track.title;
         playerArtistAlbum.textContent = track.folder;
 
-        // Actualizar la carátula en el reproductor (cover.jpg o nota musical)
+        // -------------------------------------
+        // CARÁTULA DEL ÁLBUM
+        // -------------------------------------
         if (albumData.cover) {
-            playerCover.innerHTML = `<img src="${albumData.cover}" class="player-cover-img" alt="Cover" />`;
+            playerCover.innerHTML = '';
+
+            const img = document.createElement('img');
+
+            img.src = albumData.cover;
+            img.className = 'player-cover-img';
+            img.alt = track.folder;
+
+            img.addEventListener('error', () => {
+                playerCover.innerHTML = DEFAULT_COVER;
+            });
+
+            playerCover.appendChild(img);
         } else {
             playerCover.innerHTML = DEFAULT_COVER;
         }
 
+        // -------------------------------------
+        // REPRODUCCIÓN
+        // -------------------------------------
         if (track.url) {
             audioElement.src = track.url;
-            audioElement.play().catch(e => console.log('Error de reproducción:', e));
+
+            audioElement
+                .play()
+                .catch(error => {
+                    console.log(
+                        'Error de reproducción:',
+                        error
+                    );
+                });
         }
 
+        // -------------------------------------
+        // MEDIA SESSION
+        // -------------------------------------
         if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: track.title,
-                artist: track.folder,
-                album: track.folder
-            });
+            try {
+                navigator.mediaSession.metadata =
+                    new MediaMetadata({
+                        title: track.title,
+                        artist: track.folder,
+                        album: track.folder
+                    });
 
-            navigator.mediaSession.setActionHandler('play', () => audioElement.play());
-            navigator.mediaSession.setActionHandler('pause', () => audioElement.pause());
-            navigator.mediaSession.setActionHandler('previoustrack', () => btnPrev.click());
-            navigator.mediaSession.setActionHandler('nexttrack', () => btnNext.click());
+                navigator.mediaSession.setActionHandler(
+                    'play',
+                    () => audioElement.play()
+                );
+
+                navigator.mediaSession.setActionHandler(
+                    'pause',
+                    () => audioElement.pause()
+                );
+
+                navigator.mediaSession.setActionHandler(
+                    'previoustrack',
+                    () => btnPrev.click()
+                );
+
+                navigator.mediaSession.setActionHandler(
+                    'nexttrack',
+                    () => btnNext.click()
+                );
+            } catch (error) {
+                console.log(
+                    'MediaSession no disponible:',
+                    error
+                );
+            }
         }
     }
 
+    // =========================
+    // FORMATO DEL TIEMPO
+    // =========================
     function formatTime(seconds) {
-        if (isNaN(seconds) || seconds === Infinity) return "0:00";
+        if (
+            Number.isNaN(seconds) ||
+            seconds === Infinity ||
+            seconds < 0
+        ) {
+            return '0:00';
+        }
+
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
+
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
+    // =========================
+    // EVENTO PLAY
+    // =========================
     audioElement.addEventListener('play', () => {
-        btnPlayPause.textContent = '⏸';
-        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "playing";
+        setPlayPauseState(true);
+
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'playing';
+        }
     });
 
+    // =========================
+    // EVENTO PAUSE
+    // =========================
     audioElement.addEventListener('pause', () => {
-        btnPlayPause.textContent = '▶';
-        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "paused";
+        setPlayPauseState(false);
+
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'paused';
+        }
     });
 
+    // =========================
+    // PROGRESO
+    // =========================
     audioElement.addEventListener('timeupdate', () => {
         if (!isSeeking && audioElement.duration) {
-            const progress = (audioElement.currentTime / audioElement.duration) * 100;
+            const progress =
+                (audioElement.currentTime /
+                    audioElement.duration) * 100;
+
             seekBar.value = progress;
-            currentTimeEl.textContent = formatTime(audioElement.currentTime);
-            totalDurationEl.textContent = formatTime(audioElement.duration);
+
+            currentTimeEl.textContent =
+                formatTime(audioElement.currentTime);
+
+            totalDurationEl.textContent =
+                formatTime(audioElement.duration);
         }
     });
 
+    // =========================
+    // METADATOS CARGADOS
+    // =========================
     audioElement.addEventListener('loadedmetadata', () => {
-        totalDurationEl.textContent = formatTime(audioElement.duration);
+        totalDurationEl.textContent =
+            formatTime(audioElement.duration);
     });
 
-    seekBar.addEventListener('input', () => { isSeeking = true; });
+    // =========================
+    // SEEK: EMPEZAR
+    // =========================
+    seekBar.addEventListener('input', () => {
+        isSeeking = true;
+    });
 
+    // =========================
+    // SEEK: FINALIZAR
+    // =========================
     seekBar.addEventListener('change', () => {
         if (audioElement.duration) {
-            audioElement.currentTime = (seekBar.value / 100) * audioElement.duration;
+            audioElement.currentTime =
+                (seekBar.value / 100) *
+                audioElement.duration;
         }
+
         isSeeking = false;
     });
 
+    // =========================
+    // PLAY / PAUSE
+    // =========================
     btnPlayPause.addEventListener('click', () => {
         if (!audioElement.src) return;
+
         if (audioElement.paused) {
-            audioElement.play();
+            audioElement
+                .play()
+                .catch(error => {
+                    console.log(
+                        'No se pudo reanudar:',
+                        error
+                    );
+                });
         } else {
             audioElement.pause();
         }
     });
 
+    // =========================
+    // SIGUIENTE
+    // =========================
     btnNext.addEventListener('click', () => {
-        if (currentPlaylist.length === 0 || currentIndex === -1) return;
-        currentIndex = (currentIndex + 1) % currentPlaylist.length;
-        playTrack(currentPlaylist[currentIndex], albumsMap[currentPlaylist[currentIndex].folder]);
+        if (
+            currentPlaylist.length === 0 ||
+            currentIndex === -1
+        ) {
+            return;
+        }
+
+        currentIndex =
+            (currentIndex + 1) %
+            currentPlaylist.length;
+
+        const nextTrack =
+            currentPlaylist[currentIndex];
+
+        playTrack(
+            nextTrack,
+            albumsMap[nextTrack.folder]
+        );
     });
 
+    // =========================
+    // ANTERIOR
+    // =========================
     btnPrev.addEventListener('click', () => {
-        if (currentPlaylist.length === 0 || currentIndex === -1) return;
-        currentIndex = (currentIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
-        playTrack(currentPlaylist[currentIndex], albumsMap[currentPlaylist[currentIndex].folder]);
+        if (
+            currentPlaylist.length === 0 ||
+            currentIndex === -1
+        ) {
+            return;
+        }
+
+        currentIndex =
+            (currentIndex - 1 +
+                currentPlaylist.length) %
+            currentPlaylist.length;
+
+        const previousTrack =
+            currentPlaylist[currentIndex];
+
+        playTrack(
+            previousTrack,
+            albumsMap[previousTrack.folder]
+        );
     });
 
+    // =========================
+    // AL TERMINAR UNA CANCIÓN
+    // =========================
     audioElement.addEventListener('ended', () => {
         btnNext.click();
     });
 });
+```
