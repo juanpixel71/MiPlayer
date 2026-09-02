@@ -18,10 +18,17 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        WebView webView = (WebView) this.bridge.getWebView();
-        webView.getSettings().setJavaScriptEnabled(true);
-        // Exponer la interfaz Java nativa hacia el Javascript de la app
-        webView.addJavascriptInterface(new WebAppInterface(this), "AndroidHost");
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        // Inyectar el puente nativo en cuanto el puente de Capacitor arranca
+        if (this.bridge != null && this.bridge.getWebView() != null) {
+            WebView webView = (WebView) this.bridge.getWebView();
+            webView.getSettings().setJavaScriptEnabled(true);
+            webView.addJavascriptInterface(new WebAppInterface(this), "AndroidHost");
+        }
     }
 
     public class WebAppInterface {
@@ -47,12 +54,16 @@ public class MainActivity extends BridgeActivity {
             Uri treeUri = data.getData();
             if (treeUri != null) {
                 // Dar permisos persistentes a la carpeta seleccionada
-                getContentResolver().takePersistableUriPermission(
-                    treeUri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                );
+                try {
+                    getContentResolver().takePersistableUriPermission(
+                        treeUri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    );
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
 
-                // Escanear la estructura de la carpeta en un hilo secundario
+                // Escanear la estructura de la carpeta
                 new Thread(() -> {
                     try {
                         DocumentFile pickedDir = DocumentFile.fromTreeUri(this, treeUri);
@@ -60,7 +71,6 @@ public class MainActivity extends BridgeActivity {
 
                         if (pickedDir != null && pickedDir.isDirectory()) {
                             for (DocumentFile file : pickedDir.listFiles()) {
-                                // Si es una subcarpeta (Álbum)
                                 if (file.isDirectory()) {
                                     JSONObject albumObj = new JSONObject();
                                     albumObj.put("name", file.getName());
@@ -91,7 +101,7 @@ public class MainActivity extends BridgeActivity {
                             }
                         }
 
-                        // Enviar los datos escaneados a app.js
+                        // Enviar los datos al JS
                         String jsonString = resultAlbums.toString();
                         runOnUiThread(() -> {
                             WebView webView = (WebView) bridge.getWebView();
