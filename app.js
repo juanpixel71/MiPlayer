@@ -1,120 +1,59 @@
+```javascript
 document.addEventListener('DOMContentLoaded', () => {
-    // =========================================
-    // PANTALLAS
-    // =========================================
-
+    // Pantallas
     const s1 = document.getElementById('screen-albums');
     const s2 = document.getElementById('screen-songs');
     const s3 = document.getElementById('screen-player');
 
-    // =========================================
-    // BOTONES VOLVER
-    // =========================================
+    // Botones Volver
+    const btnBackToAlbums = document.getElementById('btn-back-to-albums');
+    const btnBackToSongs = document.getElementById('btn-back-to-songs');
 
-    const btnBackToAlbums =
-        document.getElementById('btn-back-to-albums');
+    // Listas y títulos
+    const albumsList = s1.querySelector('.albums-grid');
+    const songsList = s2.querySelector('.list-container');
+    const songsHeaderTitle = document.getElementById('songs-header-title');
 
-    const btnBackToSongs =
-        document.getElementById('btn-back-to-songs');
+    // Elementos del Reproductor
+    const playerCover = document.getElementById('player-cover');
+    const playerTitle = s3.querySelector('.player-song-title');
+    const playerArtistAlbum = s3.querySelector('.player-artist-album');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const btnNext = document.getElementById('btn-next');
+    const seekBar = document.getElementById('seek-bar');
+    const currentTimeEl = document.getElementById('current-time');
+    const totalDurationEl = document.getElementById('total-duration');
 
-    // =========================================
-    // LISTAS Y TÍTULOS
-    // =========================================
-
-    const albumsList =
-        s1.querySelector('.albums-grid');
-
-    const songsList =
-        s2.querySelector('.list-container');
-
-    const songsHeaderTitle =
-        document.getElementById('songs-header-title');
-
-    // =========================================
-    // REPRODUCTOR
-    // =========================================
-
-    const playerCover =
-        document.getElementById('player-cover');
-
-    const playerTitle =
-        s3.querySelector('.player-song-title');
-
-    const playerArtistAlbum =
-        s3.querySelector('.player-artist-album');
-
-    const btnPrev =
-        document.getElementById('btn-prev');
-
-    const btnPlayPause =
-        document.getElementById('btn-play-pause');
-
-    const btnNext =
-        document.getElementById('btn-next');
-
-    const seekBar =
-        document.getElementById('seek-bar');
-
-    const currentTimeEl =
-        document.getElementById('current-time');
-
-    const totalDurationEl =
-        document.getElementById('total-duration');
-
-    // =========================================
-    // AUDIO
-    // =========================================
-
+    // Elemento Audio HTML5
     const audioElement = new Audio();
 
-    // =========================================
-    // ESTADO
-    // =========================================
-
+    // Estado global
     let albumsMap = {};
     let currentPlaylist = [];
     let currentIndex = -1;
     let isSeeking = false;
 
-    const TARGET_PATH =
-        '/storage/emulated/0/MiMusica';
+    const TARGET_PATH = '/storage/emulated/0/MiMusica';
 
-    // =========================================
-    // IMAGEN TEMPORAL
-    //
-    // De momento NO intentamos cargar cover.jpg.
-    // La zona queda preparada para la carátula
-    // cuadrada y mostramos la nota musical.
-    // =========================================
-
+    // Imagen de sustitución cuando un álbum no tiene cover.jpg
     const DEFAULT_COVER =
         '<div class="music-note-placeholder">🎵</div>';
 
     // =========================================
-    // CAMBIO DE PANTALLA
+    // NAVEGACIÓN ENTRE PANTALLAS
     // =========================================
 
     function goToScreen(targetScreen) {
-        [s1, s2, s3].forEach(screen => {
-            screen.classList.remove('active');
-        });
-
+        [s1, s2, s3].forEach(s => s.classList.remove('active'));
         targetScreen.classList.add('active');
     }
-
-    // =========================================
-    // VOLVER A ÁLBUMES
-    // =========================================
 
     if (btnBackToAlbums) {
         btnBackToAlbums.addEventListener('click', () => {
             goToScreen(s1);
         });
     }
-
-    // =========================================
-    // VOLVER A CANCIONES
-    // =========================================
 
     if (btnBackToSongs) {
         btnBackToSongs.addEventListener('click', () => {
@@ -145,50 +84,62 @@ document.addEventListener('DOMContentLoaded', () => {
     initApp();
 
     async function initApp() {
-        if (
-            window.Capacitor &&
-            window.Capacitor.Plugins
-        ) {
+
+        if (window.Capacitor && window.Capacitor.Plugins) {
+
             await requestAppPermissions();
+
             await readAbsolutePath();
+
         } else {
+
             renderDemoData();
         }
     }
 
     // =========================================
-    // PERMISOS
+    // PERMISOS DEL SISTEMA
     // =========================================
 
     async function requestAppPermissions() {
+
         const { Filesystem } =
             window.Capacitor.Plugins;
 
         try {
+
             if (
                 Filesystem &&
                 Filesystem.requestPermissions
             ) {
+
                 await Filesystem.requestPermissions();
             }
+
         } catch (e) {
+
             console.log(
-                'Error pidiendo permisos filesystem'
+                'Error pidiendo permisos filesystem:',
+                e
             );
         }
 
+        // Permiso de notificaciones
         if (
             'Notification' in window &&
             Notification.permission !== 'granted'
         ) {
+
             try {
+
                 await Notification.requestPermission();
+
             } catch (e) {}
         }
     }
 
     // =========================================
-    // OBTENER NOMBRE
+    // OBTENER NOMBRE DE ARCHIVO/CARPETA
     // =========================================
 
     function parseItemName(item) {
@@ -218,7 +169,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return (
                 parts[parts.length - 1] ||
-                parts[parts.length - 2]
+                parts[parts.length - 2] ||
+                ''
             );
         }
 
@@ -226,10 +178,106 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================
-    // LEER MiMusica
+    // CARGAR COVER.JPG COMO BASE64
     //
-    // ESTA PARTE SE MANTIENE COMO LA VERSIÓN
-    // QUE YA SABÍAMOS QUE FUNCIONABA.
+    // Esta es la parte nueva.
+    //
+    // No utilizamos directamente <img src="...">
+    // sobre la ruta física del teléfono.
+    //
+    // Android lee el archivo y nos devuelve
+    // los datos de la imagen.
+    // =========================================
+
+    async function loadCoverAsDataUrl(
+        Filesystem,
+        absolutePath,
+        fallbackUri = null
+    ) {
+
+        // Primero intentamos leer la ruta física
+        try {
+
+            const result =
+                await Filesystem.readFile({
+                    path: absolutePath
+                });
+
+            if (result && result.data) {
+
+                return (
+                    'data:image/jpeg;base64,' +
+                    result.data
+                );
+            }
+
+        } catch (error) {
+
+            console.log(
+                'No se pudo leer cover mediante ruta absoluta:',
+                absolutePath,
+                error
+            );
+        }
+
+        // Segundo intento:
+        // si Android nos ha dado una URI diferente,
+        // intentamos leer esa URI.
+        if (fallbackUri) {
+
+            try {
+
+                const result =
+                    await Filesystem.readFile({
+                        path: fallbackUri
+                    });
+
+                if (result && result.data) {
+
+                    return (
+                        'data:image/jpeg;base64,' +
+                        result.data
+                    );
+                }
+
+            } catch (error) {
+
+                console.log(
+                    'No se pudo leer cover mediante URI:',
+                    fallbackUri,
+                    error
+                );
+            }
+        }
+
+        // Tercer intento:
+        // convertFileSrc como último recurso.
+        if (
+            fallbackUri &&
+            window.Capacitor &&
+            window.Capacitor.convertFileSrc
+        ) {
+
+            try {
+
+                return window.Capacitor.convertFileSrc(
+                    fallbackUri
+                );
+
+            } catch (error) {
+
+                console.log(
+                    'No se pudo convertir URI de cover:',
+                    error
+                );
+            }
+        }
+
+        return null;
+    }
+
+    // =========================================
+    // LEER MiMusica
     // =========================================
 
     async function readAbsolutePath() {
@@ -244,9 +292,15 @@ document.addEventListener('DOMContentLoaded', () => {
             let globalIdx = 0;
 
             const rootDir =
-                await Filesystem.readdir({
-                    path: TARGET_PATH
-                }).catch(() => null);
+                await Filesystem
+                    .readdir({
+                        path: TARGET_PATH
+                    })
+                    .catch(() => null);
+
+            // =====================================
+            // NO HAY CARPETAS
+            // =====================================
 
             if (
                 !rootDir ||
@@ -269,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // =====================================
-            // RECORRER CARPETAS
+            // RECORRER CADA ÁLBUM
             // =====================================
 
             for (const item of rootDir.files) {
@@ -285,6 +339,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     `${TARGET_PATH}/${folderName}`;
 
                 let subDir = null;
+
+                // =================================
+                // LEER CARPETA DEL ÁLBUM
+                // =================================
 
                 try {
 
@@ -307,141 +365,215 @@ document.addEventListener('DOMContentLoaded', () => {
                                     path: item.uri
                                 });
 
-                        } catch (e2) {}
+                        } catch (e2) {
+
+                            console.log(
+                                'No se pudo leer carpeta:',
+                                folderName
+                            );
+                        }
+                    }
+                }
+
+                if (
+                    !subDir ||
+                    !subDir.files ||
+                    subDir.files.length === 0
+                ) {
+                    continue;
+                }
+
+                // =================================
+                // VARIABLES DEL ÁLBUM
+                // =================================
+
+                let coverUrl = null;
+
+                const tracks = [];
+
+                // =================================
+                // RECORRER ARCHIVOS
+                //
+                // IMPORTANTE:
+                // Aquí utilizamos for...of y no
+                // forEach porque necesitamos esperar
+                // a que Android lea cover.jpg.
+                // =================================
+
+                for (const fileInfo of subDir.files) {
+
+                    const fileName =
+                        parseItemName(fileInfo);
+
+                    if (
+                        !fileName ||
+                        fileName.startsWith('.')
+                    ) {
+                        continue;
+                    }
+
+                    const rawFilePath =
+                        (
+                            typeof fileInfo === 'object' &&
+                            fileInfo.uri
+                        )
+                            ? fileInfo.uri
+                            : `${cleanFolderPath}/${fileName}`;
+
+                    const lowerName =
+                        fileName.toLowerCase();
+
+                    // =================================
+                    // COVER
+                    // =================================
+
+                    if (
+                        lowerName === 'cover.jpg' ||
+                        lowerName === 'cover.jpeg' ||
+                        lowerName === 'cover.png'
+                    ) {
+
+                        const absoluteCoverPath =
+                            `${cleanFolderPath}/${fileName}`;
+
+                        let mimeType =
+                            'image/jpeg';
+
+                        if (
+                            lowerName.endsWith('.png')
+                        ) {
+                            mimeType =
+                                'image/png';
+                        }
+
+                        try {
+
+                            const coverData =
+                                await loadCoverAsDataUrl(
+                                    Filesystem,
+                                    absoluteCoverPath,
+                                    (
+                                        typeof fileInfo === 'object' &&
+                                        fileInfo.uri
+                                    )
+                                        ? fileInfo.uri
+                                        : null
+                                );
+
+                            if (coverData) {
+
+                                // Si loadCoverAsDataUrl
+                                // ya devuelve data:image...
+                                if (
+                                    coverData.startsWith(
+                                        'data:image/'
+                                    )
+                                ) {
+
+                                    coverUrl =
+                                        coverData;
+
+                                } else {
+
+                                    coverUrl =
+                                        coverData;
+                                }
+
+                                console.log(
+                                    'Cover encontrada:',
+                                    folderName,
+                                    fileName
+                                );
+                            }
+
+                        } catch (coverError) {
+
+                            console.log(
+                                'Error cargando cover:',
+                                folderName,
+                                coverError
+                            );
+                        }
+
+                        continue;
+                    }
+
+                    // =================================
+                    // CANCIONES
+                    // =================================
+
+                    if (
+                        fileName.match(
+                            /\.(mp3|flac|wav|m4a|ogg)$/i
+                        )
+                    ) {
+
+                        tracks.push({
+
+                            id:
+                                globalIdx++,
+
+                            title:
+                                fileName.replace(
+                                    /\.[^/.]+$/,
+                                    ''
+                                ),
+
+                            fileName:
+                                fileName,
+
+                            folder:
+                                folderName,
+
+                            url:
+                                window.Capacitor.convertFileSrc(
+                                    rawFilePath
+                                )
+                        });
                     }
                 }
 
                 // =================================
-                // SI LA CARPETA TIENE ARCHIVOS
+                // CREAR ÁLBUM
                 // =================================
 
-                if (
-                    subDir &&
-                    subDir.files &&
-                    subDir.files.length > 0
-                ) {
+                if (tracks.length > 0) {
 
-                    const tracks = [];
-
-                    // =================================
-                    // LEER ARCHIVOS
-                    // =================================
-
-                    subDir.files.forEach(fileInfo => {
-
-                        const fileName =
-                            parseItemName(fileInfo);
-
-                        if (
-                            !fileName ||
-                            fileName.startsWith('.')
-                        ) {
-                            return;
-                        }
-
-                        const rawFilePath =
-                            (
-                                typeof fileInfo === 'object' &&
-                                fileInfo.uri
+                    tracks.sort(
+                        (a, b) =>
+                            a.fileName.localeCompare(
+                                b.fileName,
+                                undefined,
+                                {
+                                    numeric: true,
+                                    sensitivity: 'base'
+                                }
                             )
-                                ? fileInfo.uri
-                                : `${cleanFolderPath}/${fileName}`;
+                    );
 
-                        // =================================
-                        // COVER
-                        //
-                        // IMPORTANTE:
-                        // DE MOMENTO LA IGNORAMOS.
-                        //
-                        // Esto nos permite comprobar que
-                        // los álbumes y las canciones vuelven
-                        // a funcionar independientemente
-                        // del problema de cover.jpg.
-                        // =================================
+                    albumsMap[folderName] = {
 
-                        if (
-                            fileName.toLowerCase() === 'cover.jpg' ||
-                            fileName.toLowerCase() === 'cover.jpeg' ||
-                            fileName.toLowerCase() === 'cover.png'
-                        ) {
+                        // Puede ser una imagen Base64
+                        // o null si no se pudo leer.
+                        cover:
+                            coverUrl,
 
-                            return;
-                        }
-
-                        // =================================
-                        // CANCIONES
-                        // =================================
-
-                        if (
-                            fileName.match(
-                                /\.(mp3|flac|wav|m4a|ogg)$/i
-                            )
-                        ) {
-
-                            tracks.push({
-
-                                id: globalIdx++,
-
-                                title:
-                                    fileName.replace(
-                                        /\.[^/.]+$/,
-                                        ''
-                                    ),
-
-                                fileName:
-                                    fileName,
-
-                                folder:
-                                    folderName,
-
-                                url:
-                                    window.Capacitor.convertFileSrc(
-                                        rawFilePath
-                                    )
-                            });
-                        }
-
-                    });
-
-                    // =================================
-                    // CREAR ÁLBUM
-                    // =================================
-
-                    if (tracks.length > 0) {
-
-                        tracks.sort(
-                            (a, b) =>
-                                a.fileName.localeCompare(
-                                    b.fileName,
-                                    undefined,
-                                    {
-                                        numeric: true,
-                                        sensitivity: 'base'
-                                    }
-                                )
-                        );
-
-                        albumsMap[folderName] = {
-
-                            // De momento nota musical
-                            cover: null,
-
-                            tracks: tracks
-                        };
-                    }
+                        tracks:
+                            tracks
+                    };
                 }
             }
 
-            // =================================
+            // =====================================
             // MOSTRAR ÁLBUMES
-            // =================================
+            // =====================================
 
             renderAlbums();
 
         } catch (err) {
 
             console.error(
-                'Error general:',
+                'Error general leyendo MiMusica:',
                 err
             );
 
@@ -457,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         albumsMap = {
 
-            'Álbum Ejemplo': {
+            "Álbum Ejemplo": {
 
                 cover: null,
 
@@ -465,18 +597,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     {
                         id: 1,
-                        title: '01 - Canción 1',
-                        fileName: '01 - Canción 1.mp3',
-                        folder: 'Álbum Ejemplo',
-                        url: ''
+                        title: "01 - Canción 1",
+                        fileName: "01 - Canción 1.mp3",
+                        folder: "Álbum Ejemplo",
+                        url: ""
                     },
 
                     {
                         id: 2,
-                        title: '02 - Canción 2',
-                        fileName: '02 - Canción 2.mp3',
-                        folder: 'Álbum Ejemplo',
-                        url: ''
+                        title: "02 - Canción 2",
+                        fileName: "02 - Canción 2.mp3",
+                        folder: "Álbum Ejemplo",
+                        url: ""
                     }
 
                 ]
@@ -488,10 +620,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // =========================================
     // PANTALLA 1: ÁLBUMES
-    //
-    // 2 COLUMNAS
-    // ORDEN A-Z
-    // SIN TEXTO DEBAJO
     // =========================================
 
     function renderAlbums() {
@@ -522,12 +650,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 'album-card';
 
             // =====================================
-            // SOLO LA ZONA CUADRADA
+            // SI HAY COVER
+            // =====================================
+
+            const coverHTML =
+                albumData.cover
+
+                    ? `
+                        <img
+                            src="${albumData.cover}"
+                            class="album-cover-img"
+                            alt="Cover"
+                        />
+                    `
+
+                    : DEFAULT_COVER;
+
+            // =====================================
+            // NO MOSTRAMOS TEXTO DEBAJO
             // =====================================
 
             item.innerHTML = `
                 <div class="album-cover-box">
-                    ${DEFAULT_COVER}
+                    ${coverHTML}
                 </div>
             `;
 
@@ -535,15 +680,20 @@ document.addEventListener('DOMContentLoaded', () => {
             // ABRIR ÁLBUM
             // =====================================
 
-            item.addEventListener('click', () => {
+            item.addEventListener(
+                'click',
+                () => {
 
-                songsHeaderTitle.textContent =
-                    folderName;
+                    songsHeaderTitle.textContent =
+                        folderName;
 
-                renderSongs(albumData);
+                    renderSongs(
+                        albumData
+                    );
 
-                goToScreen(s2);
-            });
+                    goToScreen(s2);
+                }
+            );
 
             albumsList.appendChild(item);
         });
@@ -567,19 +717,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
             item.innerHTML = `
                 <div class="song-text">
-                    <h4>${track.title}</h4>
+                    <h4>
+                        ${track.title}
+                    </h4>
                 </div>
             `;
 
-            item.addEventListener('click', () => {
+            item.addEventListener(
+                'click',
+                () => {
 
-                playTrack(
-                    track,
-                    albumData
-                );
+                    playTrack(
+                        track,
+                        albumData
+                    );
 
-                goToScreen(s3);
-            });
+                    goToScreen(s3);
+                }
+            );
 
             songsList.appendChild(item);
         });
@@ -609,11 +764,24 @@ document.addEventListener('DOMContentLoaded', () => {
             track.folder;
 
         // =====================================
-        // DE MOMENTO NOTA MUSICAL
+        // COVER DEL REPRODUCTOR
         // =====================================
 
-        playerCover.innerHTML =
-            DEFAULT_COVER;
+        if (albumData.cover) {
+
+            playerCover.innerHTML = `
+                <img
+                    src="${albumData.cover}"
+                    class="player-cover-img"
+                    alt="Cover"
+                />
+            `;
+
+        } else {
+
+            playerCover.innerHTML =
+                DEFAULT_COVER;
+        }
 
         // =====================================
         // REPRODUCCIÓN
@@ -626,11 +794,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             audioElement
                 .play()
-                .catch(e =>
-                    console.log(
-                        'Error de reproducción:',
-                        e
-                    )
+                .catch(
+                    e =>
+                        console.log(
+                            'Error de reproducción:',
+                            e
+                        )
                 );
         }
 
@@ -655,28 +824,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
             navigator.mediaSession.setActionHandler(
                 'play',
-                () => audioElement.play()
+                () =>
+                    audioElement.play()
             );
 
             navigator.mediaSession.setActionHandler(
                 'pause',
-                () => audioElement.pause()
+                () =>
+                    audioElement.pause()
             );
 
             navigator.mediaSession.setActionHandler(
                 'previoustrack',
-                () => btnPrev.click()
+                () =>
+                    btnPrev.click()
             );
 
             navigator.mediaSession.setActionHandler(
                 'nexttrack',
-                () => btnNext.click()
+                () =>
+                    btnNext.click()
             );
         }
     }
 
     // =========================================
-    // FORMATO TIEMPO
+    // FORMATO DE TIEMPO
     // =========================================
 
     function formatTime(seconds) {
@@ -685,7 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isNaN(seconds) ||
             seconds === Infinity
         ) {
-            return '0:00';
+            return "0:00";
         }
 
         const mins =
@@ -861,11 +1034,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 ) %
                 currentPlaylist.length;
 
+            const nextTrack =
+                currentPlaylist[
+                    currentIndex
+                ];
+
             playTrack(
-                currentPlaylist[currentIndex],
+                nextTrack,
                 albumsMap[
-                    currentPlaylist[currentIndex]
-                        .folder
+                    nextTrack.folder
                 ]
             );
         }
@@ -894,18 +1071,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 ) %
                 currentPlaylist.length;
 
+            const previousTrack =
+                currentPlaylist[
+                    currentIndex
+                ];
+
             playTrack(
-                currentPlaylist[currentIndex],
+                previousTrack,
                 albumsMap[
-                    currentPlaylist[currentIndex]
-                        .folder
+                    previousTrack.folder
                 ]
             );
         }
     );
 
     // =========================================
-    // AL TERMINAR CANCIÓN
+    // AL TERMINAR UNA CANCIÓN
     // =========================================
 
     audioElement.addEventListener(
@@ -915,3 +1096,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     );
 });
+```
