@@ -195,15 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================
-    // CARGAR COVER.JPG COMO BASE64
-    //
-    // Esta es la parte nueva.
-    //
-    // No utilizamos directamente <img src="...">
-    // sobre la ruta física del teléfono.
-    //
-    // Android lee el archivo y nos devuelve
-    // los datos de la imagen.
+    // CARGAR COVER DE MANERA ROBUSTA
     // =========================================
 
     async function loadCoverAsDataUrl(
@@ -212,7 +204,27 @@ document.addEventListener('DOMContentLoaded', () => {
         fallbackUri = null,
         mimeType = 'image/jpeg'
     ) {
-        // Intento 1: leer directamente el archivo físico.
+        // Intento 1: Convertir directamente la ruta mediante el puente Web de Capacitor
+        if (window.Capacitor && typeof window.Capacitor.convertFileSrc === 'function') {
+            try {
+                const converted = window.Capacitor.convertFileSrc(absolutePath);
+                if (converted) return converted;
+            } catch (e) {
+                console.log('Error en convertFileSrc absoluto:', e);
+            }
+        }
+
+        // Intento 2: Usar convertFileSrc sobre la URI alternativa de Android
+        if (fallbackUri && window.Capacitor && typeof window.Capacitor.convertFileSrc === 'function') {
+            try {
+                const convertedUri = window.Capacitor.convertFileSrc(fallbackUri);
+                if (convertedUri) return convertedUri;
+            } catch (e) {
+                console.log('Error en convertFileSrc URI:', e);
+            }
+        }
+
+        // Intento 3: Leer el archivo como Base64 (Filesystem.readFile)
         try {
             const result = await Filesystem.readFile({
                 path: absolutePath
@@ -222,14 +234,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `data:${mimeType};base64,${result.data}`;
             }
         } catch (error) {
-            console.log(
-                'No se pudo leer la cover por ruta absoluta:',
-                absolutePath,
-                error
-            );
+            console.log('No se pudo leer la cover en Base64 por ruta:', absolutePath);
         }
 
-        // Intento 2: usar la URI que devuelve Android.
+        // Intento 4: Intentar lectura Base64 desde la URI nativa
         if (fallbackUri) {
             try {
                 const result = await Filesystem.readFile({
@@ -240,27 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `data:${mimeType};base64,${result.data}`;
                 }
             } catch (error) {
-                console.log(
-                    'No se pudo leer la cover por URI:',
-                    fallbackUri,
-                    error
-                );
-            }
-        }
-
-        // Intento 3: dejar que Capacitor traduzca la URI para el WebView.
-        if (
-            fallbackUri &&
-            window.Capacitor &&
-            window.Capacitor.convertFileSrc
-        ) {
-            try {
-                return window.Capacitor.convertFileSrc(fallbackUri);
-            } catch (error) {
-                console.log(
-                    'No se pudo convertir la URI de la cover:',
-                    error
-                );
+                console.log('No se pudo leer la cover en Base64 por URI:', fallbackUri);
             }
         }
 
@@ -384,11 +372,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // =================================
                 // RECORRER ARCHIVOS
-                //
-                // IMPORTANTE:
-                // Aquí utilizamos for...of y no
-                // forEach porque necesitamos esperar
-                // a que Android lea cover.jpg.
                 // =================================
 
                 for (const fileInfo of subDir.files) {
@@ -453,29 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 );
 
                             if (coverData) {
-
-                                // Si loadCoverAsDataUrl
-                                // ya devuelve data:image...
-                                if (
-                                    coverData.startsWith(
-                                        'data:image/'
-                                    )
-                                ) {
-
-                                    coverUrl =
-                                        coverData;
-
-                                } else {
-
-                                    coverUrl =
-                                        coverData;
-                                }
-
-                                console.log(
-                                    'Cover encontrada:',
-                                    folderName,
-                                    fileName
-                                );
+                                coverUrl = coverData;
                             }
 
                         } catch (coverError) {
@@ -545,8 +506,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     albumsMap[folderName] = {
 
-                        // Puede ser una imagen Base64
-                        // o null si no se pudo leer.
                         cover:
                             coverUrl,
 
@@ -657,10 +616,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     `
 
                     : DEFAULT_COVER;
-
-            // =====================================
-            // NO MOSTRAMOS TEXTO DEBAJO
-            // =====================================
 
             item.innerHTML = `
                 <div class="album-cover-box">
