@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- ELEMENTOS DE PANTALLA ---
     const screen1 = document.getElementById('screen-1');
     const screen2 = document.getElementById('screen-2');
     const screen3 = document.getElementById('screen-3');
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const footerScreen2 = document.querySelector('#screen-2 footer');
     const footerScreen3 = document.querySelector('#screen-3 footer');
 
+    // Icono SVG Nota Musical 🎵 por defecto
     const MUSIC_NOTE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ff8c00"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
 
     let albumsData = [];
@@ -27,7 +29,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let audio = new Audio();
     let isPlaying = false;
 
-    // 1. RENDERIZAR PANTALLA 1
+    // Normalizar imagen para WebView (convertir URI de SAF a URL utilizable)
+    function getValidCover(uri) {
+        if (!uri || uri === '') return MUSIC_NOTE_SVG;
+        if (window.Capacitor && typeof window.Capacitor.convertFileSrc === 'function') {
+            return window.Capacitor.convertFileSrc(uri);
+        }
+        return uri;
+    }
+
+    // 1. RENDERIZAR PANTALLA 1 (ÁLBUMES)
     function renderScreen1() {
         if (!albumsGrid) return;
         albumsGrid.innerHTML = '';
@@ -47,7 +58,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (window.AndroidHost && typeof window.AndroidHost.openFolderPicker === 'function') {
                     window.AndroidHost.openFolderPicker();
                 } else {
-                    alert('Ejecuta la aplicación en tu dispositivo Android.');
+                    // Reintento de seguridad por si la interfaz tarda unos ms en engancharse
+                    setTimeout(() => {
+                        if (window.AndroidHost && typeof window.AndroidHost.openFolderPicker === 'function') {
+                            window.AndroidHost.openFolderPicker();
+                        }
+                    }, 300);
                 }
             });
             return;
@@ -58,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'album-card';
             card.style.cursor = 'pointer';
 
-            const coverUrl = album.cover ? album.cover : MUSIC_NOTE_SVG;
+            const coverUrl = getValidCover(album.cover);
 
             card.innerHTML = `
                 <div class="album-cover-wrapper" style="width:100%; aspect-ratio:1/1; background:#1e1e1e; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; border: 1px solid rgba(255,140,0,0.3);">
@@ -77,9 +93,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             albumsGrid.appendChild(card);
         });
+
+        // Botón discreto para cambiar de carpeta una vez seleccionada
+        const changeFolderBtn = document.createElement('div');
+        changeFolderBtn.innerHTML = '📁 Cambiar carpeta';
+        changeFolderBtn.style.cssText = 'position:fixed; bottom:70px; right:15px; background:rgba(255,140,0,0.9); color:#fff; padding:6px 12px; border-radius:15px; font-size:11px; font-weight:bold; z-index:999; cursor:pointer; shadow:0 2px 6px rgba(0,0,0,0.5);';
+        changeFolderBtn.addEventListener('click', () => {
+            if (window.AndroidHost && typeof window.AndroidHost.openFolderPicker === 'function') {
+                window.AndroidHost.openFolderPicker();
+            }
+        });
+        albumsGrid.appendChild(changeFolderBtn);
     }
 
-    // Callback ejecutado desde el Java nativo al elegir la carpeta
+    // Callback ejecutado automáticamente desde el código Java (MainActivity.java) tras elegir la carpeta
     window.onFolderSelected = function(data) {
         if (data && Array.isArray(data)) {
             albumsData = data;
@@ -122,6 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 3. CAMBIO DE PANTALLAS
     function showScreen(targetScreen) {
         if (!targetScreen) return;
         screen1.classList.remove('active');
@@ -134,17 +162,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (footerScreen2) footerScreen2.addEventListener('click', () => showScreen(screen1));
     if (footerScreen3) footerScreen3.addEventListener('click', () => showScreen(currentAlbum ? screen2 : screen1));
 
-    // 3. CONTROLES DE REPRODUCCIÓN
+    // 4. CONTROLES DE REPRODUCCIÓN (PANTALLA 3)
     function loadTrack(index) {
         if (!currentAlbum || currentAlbum.tracks.length === 0) return;
         currentTrackIndex = index;
         const track = currentAlbum.tracks[currentTrackIndex];
 
-        audio.src = track.src;
+        // Usar la URI nativa devuelta por el sistema de documentos SAF
+        audio.src = window.Capacitor ? window.Capacitor.convertFileSrc(track.src) : track.src;
 
         if (trackTitleScreen3) trackTitleScreen3.textContent = track.title;
         if (coverScreen3) {
-            coverScreen3.src = currentAlbum.cover ? currentAlbum.cover : MUSIC_NOTE_SVG;
+            coverScreen3.src = getValidCover(currentAlbum.cover);
             coverScreen3.onerror = () => { coverScreen3.src = MUSIC_NOTE_SVG; };
         }
 
