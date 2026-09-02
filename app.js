@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- ELEMENTOS DE PANTALLA ---
     const screen1 = document.getElementById('screen-1');
     const screen2 = document.getElementById('screen-2');
     const screen3 = document.getElementById('screen-3');
@@ -20,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const footerScreen2 = document.querySelector('#screen-2 footer');
     const footerScreen3 = document.querySelector('#screen-3 footer');
 
-    // Icono SVG por defecto (Nota musical 🎵)
     const MUSIC_NOTE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ff8c00"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
 
     let albumsData = [];
@@ -29,15 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let audio = new Audio();
     let isPlaying = false;
 
-    // Crear un input nativo oculto para seleccionar carpetas (SAF)
-    const folderInput = document.createElement('input');
-    folderInput.type = 'file';
-    folderInput.webkitdirectory = true;
-    folderInput.directory = true;
-    folderInput.style.display = 'none';
-    document.body.appendChild(folderInput);
-
-    // 1. DIBUJAR PANTALLA 1 CON BOTÓN DE SELECCIÓN DE CARPETA
+    // 1. RENDERIZAR PANTALLA 1
     function renderScreen1() {
         if (!albumsGrid) return;
         albumsGrid.innerHTML = '';
@@ -46,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
             albumsGrid.innerHTML = `
                 <div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px; color:#ffffff;">
                     <p style="font-size:18px; font-weight:bold; margin-bottom:10px;">¡Bienvenido a MiPlayer!</p>
-                    <p style="font-size:13px; opacity:0.8; margin-bottom:20px;">En Android 16 debes conceder acceso a tu carpeta de música una sola vez.</p>
+                    <p style="font-size:13px; opacity:0.8; margin-bottom:20px;">Pulsa el botón para seleccionar tu carpeta MiMusica.</p>
                     <button id="btn-select-folder" style="background:#ff8c00; color:#fff; border:none; padding:12px 24px; font-weight:bold; border-radius:25px; font-size:14px; box-shadow: 0 4px 12px rgba(255,140,0,0.4); cursor:pointer;">
                         📁 Seleccionar carpeta /MiMusica
                     </button>
@@ -54,7 +44,11 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             document.getElementById('btn-select-folder')?.addEventListener('click', () => {
-                folderInput.click();
+                if (window.AndroidHost && typeof window.AndroidHost.openFolderPicker === 'function') {
+                    window.AndroidHost.openFolderPicker();
+                } else {
+                    alert('Ejecuta la aplicación en tu dispositivo Android.');
+                }
             });
             return;
         }
@@ -64,9 +58,11 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'album-card';
             card.style.cursor = 'pointer';
 
+            const coverUrl = album.cover ? album.cover : MUSIC_NOTE_SVG;
+
             card.innerHTML = `
                 <div class="album-cover-wrapper" style="width:100%; aspect-ratio:1/1; background:#1e1e1e; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; border: 1px solid rgba(255,140,0,0.3);">
-                    <img src="${album.cover}" alt="${album.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.src='${MUSIC_NOTE_SVG}';">
+                    <img src="${coverUrl}" alt="${album.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.src='${MUSIC_NOTE_SVG}';">
                 </div>
                 <div class="album-title" style="color:#fff; font-size:13px; font-weight:bold; margin-top:6px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                     ${album.name}
@@ -81,74 +77,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             albumsGrid.appendChild(card);
         });
-
-        // Botón flotante para cambiar de carpeta en cualquier momento
-        const changeFolderBtn = document.createElement('div');
-        changeFolderBtn.innerHTML = '📁 Cambiar carpeta';
-        changeFolderBtn.style.cssText = 'position:fixed; bottom:70px; right:15px; background:rgba(255,140,0,0.9); color:#fff; padding:6px 12px; border-radius:15px; font-size:11px; font-weight:bold; z-index:999; cursor:pointer;';
-        changeFolderBtn.addEventListener('click', () => folderInput.click());
-        albumsGrid.appendChild(changeFolderBtn);
     }
 
-    // 2. PROCESAR CARPETA Y ARCHIVOS SELECCIONADOS POR EL USUARIO
-    folderInput.addEventListener('change', async (event) => {
-        const files = Array.from(event.target.files);
-        if (files.length === 0) return;
+    // Callback ejecutado desde el Java nativo al elegir la carpeta
+    window.onFolderSelected = function(data) {
+        if (data && Array.isArray(data)) {
+            albumsData = data;
+            albumsData.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
-        const albumsMap = {};
+            albumsData.forEach(album => {
+                album.tracks.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true }));
+            });
 
-        for (const file of files) {
-            const relativePath = file.webkitRelativePath; // Ejemplo: "MiMusica/Album1/cancion.mp3"
-            const parts = relativePath.split('/');
-
-            if (parts.length >= 3) {
-                const albumName = parts[1]; // Nombre de la subcarpeta (Álbum)
-                const fileName = parts[parts.length - 1];
-
-                if (!albumsMap[albumName]) {
-                    albumsMap[albumName] = {
-                        name: albumName,
-                        cover: MUSIC_NOTE_SVG,
-                        tracks: []
-                    };
-                }
-
-                // Detectar Carátula
-                if (fileName.toLowerCase().startsWith('cover.')) {
-                    albumsMap[albumName].cover = await fileToBase64(file);
-                } 
-                // Detectar Canciones
-                else if (fileName.match(/\.(mp3|wav|m4a|ogg|flac)$/i)) {
-                    albumsMap[albumName].tracks.push({
-                        title: fileName.replace(/\.[^/.]+$/, ""),
-                        src: URL.createObjectURL(file) // Genera URL Blob segura compatible con Android 16
-                    });
-                }
-            }
+            renderScreen1();
         }
+    };
 
-        albumsData = Object.values(albumsMap).filter(album => album.tracks.length > 0);
-        albumsData.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-
-        // Ordenar canciones A-Z dentro de cada álbum
-        albumsData.forEach(album => {
-            album.tracks.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true }));
-        });
-
-        renderScreen1();
-    });
-
-    // Convierte imágenes locales a Base64 para garantizar su renderizado sin bloqueos CORS en Android 16
-    function fileToBase64(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.onerror = () => resolve(MUSIC_NOTE_SVG);
-            reader.readAsDataURL(file);
-        });
-    }
-
-    // 3. RENDERIZADO PANTALLA 2 (CANCIONES)
+    // 2. RENDERIZAR PANTALLA 2 (CANCIONES)
     function renderScreen2() {
         if (!currentAlbum) return;
 
@@ -177,7 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 4. CAMBIO DE PANTALLAS
     function showScreen(targetScreen) {
         if (!targetScreen) return;
         screen1.classList.remove('active');
@@ -190,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (footerScreen2) footerScreen2.addEventListener('click', () => showScreen(screen1));
     if (footerScreen3) footerScreen3.addEventListener('click', () => showScreen(currentAlbum ? screen2 : screen1));
 
-    // 5. CONTROLES DE REPRODUCCIÓN (PANTALLA 3)
+    // 3. CONTROLES DE REPRODUCCIÓN
     function loadTrack(index) {
         if (!currentAlbum || currentAlbum.tracks.length === 0) return;
         currentTrackIndex = index;
@@ -200,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (trackTitleScreen3) trackTitleScreen3.textContent = track.title;
         if (coverScreen3) {
-            coverScreen3.src = currentAlbum.cover;
+            coverScreen3.src = currentAlbum.cover ? currentAlbum.cover : MUSIC_NOTE_SVG;
             coverScreen3.onerror = () => { coverScreen3.src = MUSIC_NOTE_SVG; };
         }
 
