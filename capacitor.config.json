@@ -1,6 +1,5 @@
 {
   "appId": "com.mimusica.player",
   "appName": "MiMusica",
-  "webDir": ".",
-  "bundledWebRuntime": false
+  "webDir": "www"
 }
