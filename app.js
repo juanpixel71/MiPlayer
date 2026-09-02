@@ -1,4 +1,20 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Solicitar permisos en Capacitor si están disponibles
+    async function requestAppPermissions() {
+        if (window.Capacitor && window.Capacitor.Plugins) {
+            const { Filesystem, Permissions } = window.Capacitor.Plugins;
+            try {
+                if (Filesystem && Filesystem.requestPermissions) {
+                    await Filesystem.requestPermissions();
+                }
+            } catch (err) {
+                console.log('Solicitud de permisos de almacenamiento finalizada:', err);
+            }
+        }
+    }
+
+    await requestAppPermissions();
+
     // Referencias a elementos
     const screen1 = document.getElementById('screen-1');
     const screen3 = document.getElementById('screen-3');
@@ -29,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isPlaying = false;
     let currentTrackIndex = 0;
 
-    // Canciones o lista de prueba local
+    // Lista de canciones / álbumes
     let playlist = [
         {
             title: 'Canción Ejemplo 1',
@@ -45,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     ];
 
-    // Asignación segura de caratula con nota musical (icon.png) por defecto
+    // Asignación de carátula con respaldo a icon.png
     function setCoverImage(element, srcPath) {
         if (!element) return;
         const img = new Image();
@@ -70,7 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fullTitle) fullTitle.textContent = track.title || 'Sin Título';
         if (fullArtist) fullArtist.textContent = track.artist || 'Artista Desconocido';
 
-        // Intentar cargar cover.jpg o icon.png en su defecto
         const coverPath = track.cover || DEFAULT_COVER;
         setCoverImage(miniCover, coverPath);
         setCoverImage(fullCover, coverPath);
@@ -80,7 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePlayIcons(playing) {
         isPlaying = playing;
-        // Iconos SVG limpios manteniendo la clase redonda .btn-play-main
         const playIconSVG = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
         const pauseIconSVG = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
 
@@ -120,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Eventos del reproductor
+    // Controles
     if (miniPlayBtn) miniPlayBtn.addEventListener('click', togglePlay);
     if (fullPlayBtn) fullPlayBtn.addEventListener('click', togglePlay);
 
@@ -164,6 +178,5 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    // Cargar la primera canción al iniciar
     loadTrack(0);
 });
