@@ -14,10 +14,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Node.js
@@ -27,6 +27,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci || npm install
+
+      - name: Prepare Web Assets
+        run: |
+          mkdir -p www
+          cp -r index.html app.js styles.css icon.png manifest.json www/ 2>/dev/null || true
+          if [ -d "music" ]; then cp -r music www/; fi
 
       - name: Sync Capacitor
         run: npx cap sync android
