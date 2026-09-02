@@ -10,12 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Elementos Pantalla 2
     const albumTitleScreen2 = document.querySelector('#screen-2 header h1') || document.getElementById('album-title');
-    const songListContainer = document.querySelector('#screen-2 .song-list') || document.getElementById('song-list');
+    const songListContainer = document.querySelector('#screen-2 .song-list') || document.getElementById('song-list') || document.querySelector('#screen-2 .songs-container');
 
     // Elementos Pantalla 3 (Reproductor)
-    const coverScreen3 = document.querySelector('#screen-3 img') || document.getElementById('cover-screen3');
+    const coverScreen3 = document.querySelector('#screen-3 img') || document.getElementById('cover-screen3') || document.getElementById('full-cover');
     const trackTitleScreen3 = document.querySelector('#screen-3 .track-title') || document.getElementById('track-title');
-    const playBtn = document.getElementById('play-btn') || document.querySelector('#screen-3 .btn-play');
+    const playBtn = document.getElementById('play-btn') || document.querySelector('#screen-3 .btn-play') || document.getElementById('full-play-btn');
     const prevBtn = document.getElementById('prev-btn') || document.querySelector('#screen-3 .btn-prev');
     const nextBtn = document.getElementById('next-btn') || document.querySelector('#screen-3 .btn-next');
     const progressBar = document.getElementById('progress-bar') || document.querySelector('#screen-3 input[type="range"]');
@@ -23,10 +23,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     const totalTimeEl = document.getElementById('total-time');
 
     const DEFAULT_COVER = 'icon.png';
-    const MUSIC_FOLDER_NAME = 'MiMusica'; // Se busca en /storage/emulated/0/MiMusica
 
     // Estado de la aplicación
-    let albumsData = []; // [{ name: 'NombreAlbum', cover: '...', tracks: [{ title, src }] }]
+    let albumsData = [
+        {
+            name: 'Mi Primer Álbum',
+            cover: 'music/cover.jpg',
+            tracks: [
+                { title: 'Canción de Ejemplo 1', src: 'music/track1.mp3' },
+                { title: 'Canción de Ejemplo 2', src: 'music/track2.mp3' }
+            ]
+        },
+        {
+            name: 'Álbum de Prueba 2',
+            cover: 'music/album2/cover.jpg',
+            tracks: [
+                { title: 'Pista Principal', src: 'music/album2/track3.mp3' }
+            ]
+        }
+    ];
+
     let currentAlbum = null;
     let currentTrackIndex = 0;
     let audio = new Audio();
@@ -38,110 +54,46 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 await window.Capacitor.Plugins.Filesystem.requestPermissions();
             } catch (err) {
-                console.log('Permisos concedidos o no requeridos:', err);
+                console.log('Permisos gestionados:', err);
             }
         }
     }
     await requestStoragePermissions();
 
-    // 2. ESCANEAR LA CARPETA /storage/emulated/0/MiMusica
-    async function scanMusicDirectory() {
-        albumsData = [];
+    // 2. CARGAR Y RENDERIZAR PANTALLA 1: LISTADO DE ÁLBUMES
+    function renderScreen1() {
+        const container = document.querySelector('#screen-1 .album-grid') || document.querySelector('#screen-1 .albums-container') || document.getElementById('album-list') || document.querySelector('#screen-1');
+        if (!container) return;
 
-        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
-            const { Filesystem, Directory } = window.Capacitor.Plugins;
-            try {
-                // Leer la carpeta MiMusica de la raíz del almacenamiento
-                const rootResult = await Filesystem.readdir({
-                    path: MUSIC_FOLDER_NAME,
-                    directory: Directory.ExternalStorage
-                });
-
-                if (rootResult && rootResult.files) {
-                    for (const item of rootResult.files) {
-                        const folderName = typeof item === 'string' ? item : item.name;
-                        const isDirectory = item.type === 'directory' || (!folderName.includes('.') && folderName !== 'cover.jpg');
-
-                        if (isDirectory) {
-                            const albumPath = `${MUSIC_FOLDER_NAME}/${folderName}`;
-                            const albumContent = await Filesystem.readdir({
-                                path: albumPath,
-                                directory: Directory.ExternalStorage
-                            });
-
-                            let coverUrl = DEFAULT_COVER;
-                            let rawTracks = [];
-
-                            if (albumContent && albumContent.files) {
-                                for (const file of albumContent.files) {
-                                    const fileName = typeof file === 'string' ? file : file.name;
-                                    const filePath = `${albumPath}/${fileName}`;
-
-                                    // Detectar cover.jpg o imágenes de portada
-                                    if (fileName.toLowerCase().startsWith('cover.')) {
-                                        const coverUriResult = await Filesystem.getUri({
-                                            path: filePath,
-                                            directory: Directory.ExternalStorage
-                                        });
-                                        coverUrl = Capacitor.convertFileSrc(coverUriResult.uri);
-                                    } 
-                                    // Detectar canciones de audio
-                                    else if (fileName.match(/\.(mp3|wav|m4a|ogg|flac)$/i)) {
-                                        const audioUriResult = await Filesystem.getUri({
-                                            path: filePath,
-                                            directory: Directory.ExternalStorage
-                                        });
-                                        rawTracks.push({
-                                            title: fileName.replace(/\.[^/.]+$/, ""),
-                                            src: Capacitor.convertFileSrc(audioUriResult.uri)
-                                        });
-                                    }
-                                }
-                            }
-
-                            // Ordenar canciones de la A a la Z
-                            rawTracks.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
-
-                            if (rawTracks.length > 0) {
-                                albumsData.push({
-                                    name: folderName,
-                                    cover: coverUrl,
-                                    tracks: rawTracks
-                                });
-                            }
-                        }
-                    }
-                }
-            } catch (error) {
-                console.log('Error escaneando almacenamiento:', error);
+        // Limpiar contenedor preservando el header y footer si están dentro
+        const existingGrid = container.querySelector('.album-grid, .albums-container, #album-list') || container;
+        
+        let targetList = existingGrid;
+        if (targetList === container && !targetList.classList.contains('album-grid') && !targetList.classList.contains('albums-container')) {
+            // Si es la pantalla entera, buscamos o creamos un div interno para las cards
+            targetList = container.querySelector('.content-body') || document.createElement('div');
+            if (!targetList.parentNode) {
+                targetList.className = 'albums-container';
+                container.appendChild(targetList);
             }
         }
 
-        // Ordenar álbumes de la A a la Z
-        albumsData.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-
-        renderScreen1();
-    }
-
-    // 3. PANTALLA 1: LISTADO DE ÁLBUMES
-    function renderScreen1() {
-        const container = document.querySelector('#screen-1 .album-grid') || document.querySelector('#screen-1 .albums-container') || document.getElementById('album-list');
-        if (!container) return;
-        container.innerHTML = '';
+        targetList.innerHTML = '';
 
         if (albumsData.length === 0) {
-            container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 30px; color: #ffffff;">No se han encontrado carpetas con música en /MiMusica</div>`;
+            targetList.innerHTML = `<div style="text-align: center; padding: 20px; color: #ffffff;">No hay álbumes disponibles</div>`;
             return;
         }
 
         albumsData.forEach((album) => {
             const card = document.createElement('div');
-            card.className = 'album-card';
+            card.className = 'album-item';
             card.style.cursor = 'pointer';
+            card.style.margin = '10px';
 
             card.innerHTML = `
-                <img src="${album.cover}" alt="${album.name}" onerror="this.src='${DEFAULT_COVER}'">
-                <div class="album-name">${album.name}</div>
+                <img src="${album.cover}" alt="${album.name}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;" onerror="this.src='${DEFAULT_COVER}'">
+                <div class="album-name" style="color: #ffffff; margin-top: 5px; font-weight: bold;">${album.name}</div>
             `;
 
             card.addEventListener('click', () => {
@@ -150,11 +102,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showScreen(screen2);
             });
 
-            container.appendChild(card);
+            targetList.appendChild(card);
         });
     }
 
-    // 4. PANTALLA 2: LISTADO DE CANCIONES (A-Z)
+    // 3. PANTALLA 2: LISTADO DE CANCIONES (A-Z)
     function renderScreen2() {
         if (!currentAlbum) return;
 
@@ -162,14 +114,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!songListContainer) return;
         songListContainer.innerHTML = '';
 
+        // Ordenar de la A a la Z
+        currentAlbum.tracks.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
+
         currentAlbum.tracks.forEach((track, index) => {
             const songRow = document.createElement('div');
             songRow.className = 'song-item';
             songRow.style.cursor = 'pointer';
+            songRow.style.padding = '10px';
+            songRow.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
 
             songRow.innerHTML = `
-                <span class="song-number">${index + 1}</span>
-                <span class="song-title">${track.title}</span>
+                <span class="song-number" style="margin-right: 10px; color: #94a3b8;">${index + 1}</span>
+                <span class="song-title" style="color: #ffffff;">${track.title}</span>
             `;
 
             songRow.addEventListener('click', () => {
@@ -182,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 5. NAVEGACIÓN Y FOOTERS
+    // 4. NAVEGACIÓN Y FOOTERS
     function showScreen(targetScreen) {
         screen1.classList.remove('active');
         if (screen2) screen2.classList.remove('active');
@@ -191,14 +148,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         targetScreen.classList.add('active');
     }
 
-    // Footer Pantalla 2 -> Volver a álbumes (Pantalla 1)
     if (footerScreen2) {
         footerScreen2.addEventListener('click', () => {
             showScreen(screen1);
         });
     }
 
-    // Footer Pantalla 3 -> Volver a canciones (Pantalla 2)
     if (footerScreen3) {
         footerScreen3.addEventListener('click', () => {
             if (currentAlbum) {
@@ -209,7 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 6. PANTALLA 3: REPRODUCTOR
+    // 5. PANTALLA 3: REPRODUCTOR
     function loadTrack(index) {
         if (!currentAlbum || currentAlbum.tracks.length === 0) return;
         currentTrackIndex = index;
@@ -240,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!audio.src) return;
         audio.play().then(() => {
             updatePlayButtonIcon(true);
-        }).catch(err => console.log('Error al reproducir audio:', err));
+        }).catch(err => console.log('Reproducción pausada o bloqueada:', err));
     }
 
     function togglePlay() {
@@ -274,7 +229,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Progreso y tiempos
     audio.addEventListener('timeupdate', () => {
         if (audio.duration) {
             const progress = (audio.currentTime / audio.duration) * 100;
@@ -298,6 +252,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    // Iniciar escaneo
-    await scanMusicDirectory();
+    // Inicializar visualización de la Pantalla 1
+    renderScreen1();
 });
