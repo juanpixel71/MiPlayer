@@ -1,99 +1,182 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    // --- ELEMENTOS DE LAS 3 PANTALLAS ---
+    // --- ELEMENTOS DEL DOM ---
     const screen1 = document.getElementById('screen-1');
     const screen2 = document.getElementById('screen-2');
     const screen3 = document.getElementById('screen-3');
 
-    // Footers de navegación
-    const footerScreen2 = document.querySelector('#screen-2 footer') || document.getElementById('footer-screen-2');
-    const footerScreen3 = document.querySelector('#screen-3 footer') || document.getElementById('footer-screen-3');
+    // Identificamos el contenedor de la Pantalla 1
+    const albumsContainer = document.querySelector('#screen-1 .album-grid') || 
+                            document.querySelector('#screen-1 .albums-container') || 
+                            document.getElementById('album-list') ||
+                            document.querySelector('#screen-1 main') ||
+                            screen1;
 
-    // Elementos Pantalla 2
+    // Elementos de la Pantalla 2
     const albumTitleScreen2 = document.querySelector('#screen-2 header h1') || document.getElementById('album-title');
-    const songListContainer = document.querySelector('#screen-2 .song-list') || document.getElementById('song-list') || document.querySelector('#screen-2 .songs-container');
+    const songListContainer = document.querySelector('#screen-2 .song-list') || 
+                                document.querySelector('#screen-2 .songs-container') || 
+                                document.getElementById('song-list');
 
-    // Elementos Pantalla 3 (Reproductor)
-    const coverScreen3 = document.querySelector('#screen-3 img') || document.getElementById('cover-screen3') || document.getElementById('full-cover');
+    // Elementos de la Pantalla 3
+    const coverScreen3 = document.querySelector('#screen-3 img') || document.getElementById('cover-screen3');
     const trackTitleScreen3 = document.querySelector('#screen-3 .track-title') || document.getElementById('track-title');
-    const playBtn = document.getElementById('play-btn') || document.querySelector('#screen-3 .btn-play') || document.getElementById('full-play-btn');
+    const playBtn = document.getElementById('play-btn') || document.querySelector('#screen-3 .btn-play');
     const prevBtn = document.getElementById('prev-btn') || document.querySelector('#screen-3 .btn-prev');
     const nextBtn = document.getElementById('next-btn') || document.querySelector('#screen-3 .btn-next');
     const progressBar = document.getElementById('progress-bar') || document.querySelector('#screen-3 input[type="range"]');
     const currentTimeEl = document.getElementById('current-time');
     const totalTimeEl = document.getElementById('total-time');
 
-    const DEFAULT_COVER = 'icon.png';
+    // Footers
+    const footerScreen2 = document.querySelector('#screen-2 footer');
+    const footerScreen3 = document.querySelector('#screen-3 footer');
 
-    // Estado de la aplicación
-    let albumsData = [
-        {
-            name: 'Mi Primer Álbum',
-            cover: 'music/cover.jpg',
-            tracks: [
-                { title: 'Canción de Ejemplo 1', src: 'music/track1.mp3' },
-                { title: 'Canción de Ejemplo 2', src: 'music/track2.mp3' }
-            ]
-        },
-        {
-            name: 'Álbum de Prueba 2',
-            cover: 'music/album2/cover.jpg',
-            tracks: [
-                { title: 'Pista Principal', src: 'music/album2/track3.mp3' }
-            ]
-        }
-    ];
+    // Icono por defecto (Nota musical 🎵 si no hay cover.jpg)
+    const MUSIC_NOTE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="%23ff8c00"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
 
+    let albumsData = [];
     let currentAlbum = null;
     let currentTrackIndex = 0;
     let audio = new Audio();
     let isPlaying = false;
 
-    // 1. SOLICITAR PERMISOS EN ANDROID
-    async function requestStoragePermissions() {
+    // 1. SOLICITAR PERMISOS DE ARCHIVOS
+    async function requestPermissions() {
         if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
             try {
                 await window.Capacitor.Plugins.Filesystem.requestPermissions();
             } catch (err) {
-                console.log('Permisos gestionados:', err);
+                console.log('Permisos solicitados:', err);
             }
         }
     }
-    await requestStoragePermissions();
 
-    // 2. CARGAR Y RENDERIZAR PANTALLA 1: LISTADO DE ÁLBUMES
-    function renderScreen1() {
-        const container = document.querySelector('#screen-1 .album-grid') || document.querySelector('#screen-1 .albums-container') || document.getElementById('album-list') || document.querySelector('#screen-1');
-        if (!container) return;
+    // 2. ESCANEAR /storage/emulated/0/MiMusica
+    async function scanMusicFolder() {
+        albumsData = [];
 
-        // Limpiar contenedor preservando el header y footer si están dentro
-        const existingGrid = container.querySelector('.album-grid, .albums-container, #album-list') || container;
-        
-        let targetList = existingGrid;
-        if (targetList === container && !targetList.classList.contains('album-grid') && !targetList.classList.contains('albums-container')) {
-            // Si es la pantalla entera, buscamos o creamos un div interno para las cards
-            targetList = container.querySelector('.content-body') || document.createElement('div');
-            if (!targetList.parentNode) {
-                targetList.className = 'albums-container';
-                container.appendChild(targetList);
+        if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
+            const { Filesystem, Directory } = window.Capacitor.Plugins;
+
+            try {
+                // Leer el directorio MiMusica desde el almacenamiento externo público
+                const rootResult = await Filesystem.readdir({
+                    path: 'MiMusica',
+                    directory: Directory.ExternalStorage
+                });
+
+                if (rootResult && rootResult.files) {
+                    for (const item of rootResult.files) {
+                        const folderName = typeof item === 'string' ? item : item.name;
+                        
+                        // Si es una subcarpeta (Álbum)
+                        if (!folderName.includes('.')) {
+                            const albumPath = `MiMusica/${folderName}`;
+                            
+                            const albumContent = await Filesystem.readdir({
+                                path: albumPath,
+                                directory: Directory.ExternalStorage
+                            });
+
+                            let coverSrc = MUSIC_NOTE_SVG; // Nota musical por defecto
+                            let tracks = [];
+
+                            if (albumContent && albumContent.files) {
+                                for (const file of albumContent.files) {
+                                    const fileName = typeof file === 'string' ? file : file.name;
+                                    const filePath = `${albumPath}/${fileName}`;
+
+                                    // Buscar portada (cover.jpg, cover.png, etc.)
+                                    if (fileName.toLowerCase().startsWith('cover.')) {
+                                        try {
+                                            const coverFile = await Filesystem.getUri({
+                                                path: filePath,
+                                                directory: Directory.ExternalStorage
+                                            });
+                                            coverSrc = Capacitor.convertFileSrc(coverFile.uri);
+                                        } catch (e) {
+                                            coverSrc = MUSIC_NOTE_SVG;
+                                        }
+                                    } 
+                                    // Buscar archivos de audio
+                                    else if (fileName.match(/\.(mp3|wav|m4a|ogg|flac)$/i)) {
+                                        const audioFile = await Filesystem.getUri({
+                                            path: filePath,
+                                            directory: Directory.ExternalStorage
+                                        });
+                                        tracks.push({
+                                            title: fileName.replace(/\.[^/.]+$/, ""),
+                                            src: Capacitor.convertFileSrc(audioFile.uri)
+                                        });
+                                    }
+                                }
+                            }
+
+                            // Ordenar canciones A-Z
+                            tracks.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true }));
+
+                            if (tracks.length > 0) {
+                                albumsData.push({
+                                    name: folderName,
+                                    cover: coverSrc,
+                                    tracks: tracks
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('Error escaneando MiMusica:', error);
             }
         }
 
-        targetList.innerHTML = '';
+        // Ordenar álbumes A-Z
+        albumsData.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+        renderScreen1();
+    }
+
+    // 3. RENDERIZAR PANTALLA 1 (ÁLBURMES)
+    function renderScreen1() {
+        if (!albumsContainer) return;
+
+        // Si el contenedor incluye headers/footers, buscamos un sub-div
+        let listContainer = albumsContainer;
+        if (!albumsContainer.classList.contains('album-grid') && !albumsContainer.classList.contains('albums-container')) {
+            let innerContainer = albumsContainer.querySelector('.content-body, .album-grid, .albums-container, #album-list');
+            if (innerContainer) {
+                listContainer = innerContainer;
+            }
+        }
+
+        listContainer.innerHTML = '';
 
         if (albumsData.length === 0) {
-            targetList.innerHTML = `<div style="text-align: center; padding: 20px; color: #ffffff;">No hay álbumes disponibles</div>`;
+            listContainer.innerHTML = `
+                <div style="text-align:center; padding:40px 20px; color:#ffffff;">
+                    <p style="font-size:18px; font-weight:bold;">No se encontraron álbumes</p>
+                    <p style="font-size:13px; opacity:0.8;">Asegúrate de tener carpetas dentro de:<br><b>/storage/emulated/0/MiMusica</b></p>
+                </div>
+            `;
             return;
         }
 
         albumsData.forEach((album) => {
             const card = document.createElement('div');
-            card.className = 'album-item';
-            card.style.cursor = 'pointer';
+            card.className = 'album-card';
+            card.style.display = 'flex';
+            card.style.flexDirection = 'column';
+            card.style.alignItems = 'center';
             card.style.margin = '10px';
+            card.style.cursor = 'pointer';
 
             card.innerHTML = `
-                <img src="${album.cover}" alt="${album.name}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;" onerror="this.src='${DEFAULT_COVER}'">
-                <div class="album-name" style="color: #ffffff; margin-top: 5px; font-weight: bold;">${album.name}</div>
+                <div style="width:120px; height:120px; background:#222; border-radius:12px; display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid #ff8c00;">
+                    <img src="${album.cover}" alt="${album.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='${MUSIC_NOTE_SVG}'">
+                </div>
+                <span style="color:#ffffff; font-weight:600; margin-top:8px; text-align:center; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    ${album.name}
+                </span>
             `;
 
             card.addEventListener('click', () => {
@@ -102,45 +185,46 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showScreen(screen2);
             });
 
-            targetList.appendChild(card);
+            listContainer.appendChild(card);
         });
     }
 
-    // 3. PANTALLA 2: LISTADO DE CANCIONES (A-Z)
+    // 4. RENDERIZAR PANTALLA 2 (CANCIONES A-Z)
     function renderScreen2() {
         if (!currentAlbum) return;
 
         if (albumTitleScreen2) albumTitleScreen2.textContent = currentAlbum.name;
         if (!songListContainer) return;
+        
         songListContainer.innerHTML = '';
 
-        // Ordenar de la A a la Z
-        currentAlbum.tracks.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
-
         currentAlbum.tracks.forEach((track, index) => {
-            const songRow = document.createElement('div');
-            songRow.className = 'song-item';
-            songRow.style.cursor = 'pointer';
-            songRow.style.padding = '10px';
-            songRow.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+            const item = document.createElement('div');
+            item.className = 'song-item';
+            item.style.padding = '12px';
+            item.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+            item.style.display = 'flex';
+            item.style.alignItems = 'center';
+            item.style.cursor = 'pointer';
 
-            songRow.innerHTML = `
-                <span class="song-number" style="margin-right: 10px; color: #94a3b8;">${index + 1}</span>
-                <span class="song-title" style="color: #ffffff;">${track.title}</span>
+            item.innerHTML = `
+                <span style="color:#ff8c00; font-weight:bold; margin-right:15px; width:20px;">${index + 1}</span>
+                <span style="color:#ffffff; font-size:15px;">${track.title}</span>
             `;
 
-            songRow.addEventListener('click', () => {
+            item.addEventListener('click', () => {
                 loadTrack(index);
-                playAudio();
+                playTrack();
                 showScreen(screen3);
             });
 
-            songListContainer.appendChild(songRow);
+            songListContainer.appendChild(item);
         });
     }
 
-    // 4. NAVEGACIÓN Y FOOTERS
+    // 5. CAMBIO DE PANTALLAS Y FOOTERS
     function showScreen(targetScreen) {
+        if (!targetScreen) return;
         screen1.classList.remove('active');
         if (screen2) screen2.classList.remove('active');
         screen3.classList.remove('active');
@@ -149,22 +233,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (footerScreen2) {
-        footerScreen2.addEventListener('click', () => {
-            showScreen(screen1);
-        });
+        footerScreen2.addEventListener('click', () => showScreen(screen1));
     }
 
     if (footerScreen3) {
-        footerScreen3.addEventListener('click', () => {
-            if (currentAlbum) {
-                showScreen(screen2);
-            } else {
-                showScreen(screen1);
-            }
-        });
+        footerScreen3.addEventListener('click', () => showScreen(currentAlbum ? screen2 : screen1));
     }
 
-    // 5. PANTALLA 3: REPRODUCTOR
+    // 6. CONTROLES DEL REPRODUCTOR (PANTALLA 3)
     function loadTrack(index) {
         if (!currentAlbum || currentAlbum.tracks.length === 0) return;
         currentTrackIndex = index;
@@ -174,37 +250,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (trackTitleScreen3) trackTitleScreen3.textContent = track.title;
         if (coverScreen3) {
-            coverScreen3.src = currentAlbum.cover || DEFAULT_COVER;
-            coverScreen3.onerror = () => { coverScreen3.src = DEFAULT_COVER; };
+            coverScreen3.src = currentAlbum.cover;
+            coverScreen3.onerror = () => { coverScreen3.src = MUSIC_NOTE_SVG; };
         }
 
-        updatePlayButtonIcon(false);
+        updatePlayButton(false);
     }
 
-    function updatePlayButtonIcon(playing) {
+    function updatePlayButton(playing) {
         isPlaying = playing;
-        const playIconSVG = `<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
-        const pauseIconSVG = `<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+        const playSVG = `<svg viewBox="0 0 24 24" width="30" height="30" fill="white"><path d="M8 5v14l11-7z"/></svg>`;
+        const pauseSVG = `<svg viewBox="0 0 24 24" width="30" height="30" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
 
-        if (playBtn) {
-            playBtn.innerHTML = isPlaying ? pauseIconSVG : playIconSVG;
-        }
+        if (playBtn) playBtn.innerHTML = isPlaying ? pauseSVG : playSVG;
     }
 
-    function playAudio() {
+    function playTrack() {
         if (!audio.src) return;
-        audio.play().then(() => {
-            updatePlayButtonIcon(true);
-        }).catch(err => console.log('Reproducción pausada o bloqueada:', err));
+        audio.play().then(() => updatePlayButton(true)).catch(e => console.log('Error play:', e));
     }
 
     function togglePlay() {
         if (!audio.src) return;
         if (isPlaying) {
             audio.pause();
-            updatePlayButtonIcon(false);
+            updatePlayButton(false);
         } else {
-            playAudio();
+            playTrack();
         }
     }
 
@@ -213,10 +285,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (prevBtn) {
         prevBtn.addEventListener('click', () => {
             if (!currentAlbum) return;
-            let nextIndex = currentTrackIndex - 1;
-            if (nextIndex < 0) nextIndex = currentAlbum.tracks.length - 1;
-            loadTrack(nextIndex);
-            playAudio();
+            let prevIndex = currentTrackIndex - 1;
+            if (prevIndex < 0) prevIndex = currentAlbum.tracks.length - 1;
+            loadTrack(prevIndex);
+            playTrack();
         });
     }
 
@@ -225,7 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!currentAlbum) return;
             let nextIndex = (currentTrackIndex + 1) % currentAlbum.tracks.length;
             loadTrack(nextIndex);
-            playAudio();
+            playTrack();
         });
     }
 
@@ -246,12 +318,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    function formatTime(seconds) {
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    function formatTime(secs) {
+        const m = Math.floor(secs / 60);
+        const s = Math.floor(secs % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
-    // Inicializar visualización de la Pantalla 1
-    renderScreen1();
+    // Arrancar la app
+    await requestPermissions();
+    await scanMusicFolder();
 });
