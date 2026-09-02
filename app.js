@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================
-    // CARGAR COVER.JPG COMO BASE64 / WEBVIEW SRC
+    // CARGAR COVER.JPG FORZANDO BASE64 PURO
     // =========================================
 
     async function loadCoverAsDataUrl(
@@ -204,17 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fallbackUri = null,
         mimeType = 'image/jpeg'
     ) {
-        // Intento 1: usar la conversión directa a URL de WebView de Capacitor (Más rápido y eficiente)
-        if (absolutePath && window.Capacitor && window.Capacitor.convertFileSrc) {
-            try {
-                const webviewUrl = window.Capacitor.convertFileSrc(absolutePath);
-                if (webviewUrl) return webviewUrl;
-            } catch (error) {
-                console.log('No se pudo convertir la ruta de la cover a URL de WebView:', error);
-            }
-        }
-
-        // Intento 2: leer directamente el archivo físico y pasar a Base64 si el intento 1 falla.
+        // Obligamos a Android a leer los bytes crudos de la imagen y transformarlos a Base64 text
         try {
             const result = await Filesystem.readFile({
                 path: absolutePath
@@ -225,13 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.log(
-                'No se pudo leer la cover por ruta absoluta:',
-                absolutePath,
-                error
+                'Error leyendo por ruta absoluta, probando Uri alternativa:',
+                absolutePath
             );
         }
 
-        // Intento 3: usar la URI / path alternativo que devuelve Android.
         if (fallbackUri) {
             try {
                 const result = await Filesystem.readFile({
@@ -243,9 +231,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.log(
-                    'No se pudo leer la cover por URI alternativa:',
-                    fallbackUri,
-                    error
+                    'No se pudo leer la cover por URI:',
+                    fallbackUri
                 );
             }
         }
@@ -322,11 +309,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // =================================
 
                 try {
-                    // Usar la ruta estructurada nativa de Capacitor 5 si está disponible
-                    const pathTarget = item.path || cleanFolderPath;
-                    subDir = await Filesystem.readdir({
-                        path: pathTarget
-                    });
+
+                    subDir =
+                        await Filesystem.readdir({
+                            path: cleanFolderPath
+                        });
 
                 } catch (e1) {
 
@@ -356,3 +343,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     !subDir ||
                     !subDir.files ||
                     subDir.files.length === 0
+                ) {
+                    continue;
+                }
+
+                // =================================
+                // VARIABLES DEL ÁLBUM
+                // =================================
+
+                let coverUrl = null;
+
+                const tracks = [];
+
+                // =================================
+                // RECORRER ARCHIVOS
+                // =================================
+
+                for (const fileInfo of subDir.files) {
+
+                    const fileName =
+                        parseItemName(fileInfo);
+
+                    if (
+                        !fileName ||
+                        fileName.startsWith('.')
+                    ) {
+                        continue;
