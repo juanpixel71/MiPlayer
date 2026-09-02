@@ -1,251 +1,358 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- ELEMENTOS DE PANTALLA ---
-    const screen1 = document.getElementById('screen-1');
-    const screen2 = document.getElementById('screen-2');
-    const screen3 = document.getElementById('screen-3');
+    // Pantallas
+    const s1 = document.getElementById('screen-albums');
+    const s2 = document.getElementById('screen-songs');
+    const s3 = document.getElementById('screen-player');
 
-    const albumsGrid = document.querySelector('#screen-1 .albums-grid') || document.querySelector('.albums-grid');
-    const albumTitleScreen2 = document.querySelector('#screen-2 header h1') || document.getElementById('album-title');
-    const songListContainer = document.querySelector('#screen-2 .song-list') || document.querySelector('#screen-2 .songs-container');
+    // Botones Volver
+    const btnBackToAlbums = document.getElementById('btn-back-to-albums');
+    const btnBackToSongs = document.getElementById('btn-back-to-songs');
 
-    const coverScreen3 = document.querySelector('#screen-3 img') || document.getElementById('cover-screen3');
-    const trackTitleScreen3 = document.querySelector('#screen-3 .track-title') || document.getElementById('track-title');
-    const playBtn = document.getElementById('play-btn') || document.querySelector('#screen-3 .btn-play');
-    const prevBtn = document.getElementById('prev-btn') || document.querySelector('#screen-3 .btn-prev');
-    const nextBtn = document.getElementById('next-btn') || document.querySelector('#screen-3 .btn-next');
-    const progressBar = document.getElementById('progress-bar') || document.querySelector('#screen-3 input[type="range"]');
+    // Listas y títulos
+    const albumsList = s1.querySelector('.albums-grid');
+    const songsList = s2.querySelector('.list-container');
+    const songsHeaderTitle = document.getElementById('songs-header-title');
+
+    // Elementos del Reproductor
+    const playerCover = document.getElementById('player-cover');
+    const playerTitle = s3.querySelector('.player-song-title');
+    const playerArtistAlbum = s3.querySelector('.player-artist-album');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const btnNext = document.getElementById('btn-next');
+    const seekBar = document.getElementById('seek-bar');
     const currentTimeEl = document.getElementById('current-time');
-    const totalTimeEl = document.getElementById('total-time');
+    const totalDurationEl = document.getElementById('total-duration');
 
-    const footerScreen2 = document.querySelector('#screen-2 footer');
-    const footerScreen3 = document.querySelector('#screen-3 footer');
+    // Elemento Audio HTML5
+    const audioElement = new Audio();
 
-    // Icono SVG Nota Musical 🎵 por defecto
-    const MUSIC_NOTE_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ff8c00"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
+    // Estado global
+    let albumsMap = {};
+    let currentPlaylist = [];
+    let currentIndex = -1;
+    let isSeeking = false;
 
-    let albumsData = [];
-    let currentAlbum = null;
-    let currentTrackIndex = 0;
-    let audio = new Audio();
-    let isPlaying = false;
+    const TARGET_PATH = '/storage/emulated/0/MiMusica';
 
-    // Normalizar imagen para WebView (convertir URI de SAF a URL utilizable)
-    function getValidCover(uri) {
-        if (!uri || uri === '') return MUSIC_NOTE_SVG;
-        if (window.Capacitor && typeof window.Capacitor.convertFileSrc === 'function') {
-            return window.Capacitor.convertFileSrc(uri);
-        }
-        return uri;
-    }
+    // Imagen de sustitución cuando un álbum no tiene cover.jpg
+    const DEFAULT_COVER =
+        '<div class="music-note-placeholder">🎵</div>';
 
-    // 1. RENDERIZAR PANTALLA 1 (ÁLBUMES)
-    function renderScreen1() {
-        if (!albumsGrid) return;
-        albumsGrid.innerHTML = '';
+    // El botón conserva siempre su círculo exterior.
+    // Solo cambia el icono interior mediante CSS.
+    function setPlayPauseIcon(isPlaying) {
+        if (!btnPlayPause) return;
 
-        if (albumsData.length === 0) {
-            albumsGrid.innerHTML = `
-                <div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px; color:#ffffff;">
-                    <p style="font-size:18px; font-weight:bold; margin-bottom:10px;">¡Bienvenido a MiPlayer!</p>
-                    <p style="font-size:13px; opacity:0.8; margin-bottom:20px;">Pulsa el botón para seleccionar tu carpeta MiMusica.</p>
-                    <button id="btn-select-folder" style="background:#ff8c00; color:#fff; border:none; padding:12px 24px; font-weight:bold; border-radius:25px; font-size:14px; box-shadow: 0 4px 12px rgba(255,140,0,0.4); cursor:pointer;">
-                        📁 Seleccionar carpeta /MiMusica
-                    </button>
-                </div>
-            `;
+        const icon =
+            btnPlayPause.querySelector('.play-pause-icon');
 
-            document.getElementById('btn-select-folder')?.addEventListener('click', () => {
-                if (window.AndroidHost && typeof window.AndroidHost.openFolderPicker === 'function') {
-                    window.AndroidHost.openFolderPicker();
-                } else {
-                    // Reintento de seguridad por si la interfaz tarda unos ms en engancharse
-                    setTimeout(() => {
-                        if (window.AndroidHost && typeof window.AndroidHost.openFolderPicker === 'function') {
-                            window.AndroidHost.openFolderPicker();
-                        }
-                    }, 300);
-                }
-            });
-            return;
+        if (icon) {
+            icon.classList.toggle('is-playing', isPlaying);
         }
 
-        albumsData.forEach((album) => {
-            const card = document.createElement('div');
-            card.className = 'album-card';
-            card.style.cursor = 'pointer';
-
-            const coverUrl = getValidCover(album.cover);
-
-            card.innerHTML = `
-                <div class="album-cover-wrapper" style="width:100%; aspect-ratio:1/1; background:#1e1e1e; border-radius:10px; overflow:hidden; display:flex; align-items:center; justify-content:center; border: 1px solid rgba(255,140,0,0.3);">
-                    <img src="${coverUrl}" alt="${album.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.onerror=null; this.src='${MUSIC_NOTE_SVG}';">
-                </div>
-                <div class="album-title" style="color:#fff; font-size:13px; font-weight:bold; margin-top:6px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                    ${album.name}
-                </div>
-            `;
-
-            card.addEventListener('click', () => {
-                currentAlbum = album;
-                renderScreen2();
-                showScreen(screen2);
-            });
-
-            albumsGrid.appendChild(card);
-        });
-
-        // Botón discreto para cambiar de carpeta una vez seleccionada
-        const changeFolderBtn = document.createElement('div');
-        changeFolderBtn.innerHTML = '📁 Cambiar carpeta';
-        changeFolderBtn.style.cssText = 'position:fixed; bottom:70px; right:15px; background:rgba(255,140,0,0.9); color:#fff; padding:6px 12px; border-radius:15px; font-size:11px; font-weight:bold; z-index:999; cursor:pointer; shadow:0 2px 6px rgba(0,0,0,0.5);';
-        changeFolderBtn.addEventListener('click', () => {
-            if (window.AndroidHost && typeof window.AndroidHost.openFolderPicker === 'function') {
-                window.AndroidHost.openFolderPicker();
-            }
-        });
-        albumsGrid.appendChild(changeFolderBtn);
+        btnPlayPause.setAttribute(
+            'aria-label',
+            isPlaying ? 'Pausar' : 'Reproducir'
+        );
     }
 
-    // Callback ejecutado automáticamente desde el código Java (MainActivity.java) tras elegir la carpeta
-    window.onFolderSelected = function(data) {
-        if (data && Array.isArray(data)) {
-            albumsData = data;
-            albumsData.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    // =========================================
+    // NAVEGACIÓN ENTRE PANTALLAS
+    // =========================================
 
-            albumsData.forEach(album => {
-                album.tracks.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true }));
-            });
-
-            renderScreen1();
-        }
-    };
-
-    // 2. RENDERIZAR PANTALLA 2 (CANCIONES)
-    function renderScreen2() {
-        if (!currentAlbum) return;
-
-        if (albumTitleScreen2) albumTitleScreen2.textContent = currentAlbum.name;
-        if (!songListContainer) return;
-
-        songListContainer.innerHTML = '';
-
-        currentAlbum.tracks.forEach((track, index) => {
-            const item = document.createElement('div');
-            item.className = 'song-item';
-            item.style.cssText = 'padding:12px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; cursor:pointer;';
-
-            item.innerHTML = `
-                <span style="color:#ff8c00; font-weight:bold; margin-right:12px; min-width:20px;">${index + 1}</span>
-                <span style="color:#ffffff; font-size:14px;">${track.title}</span>
-            `;
-
-            item.addEventListener('click', () => {
-                loadTrack(index);
-                playTrack();
-                showScreen(screen3);
-            });
-
-            songListContainer.appendChild(item);
-        });
-    }
-
-    // 3. CAMBIO DE PANTALLAS
-    function showScreen(targetScreen) {
-        if (!targetScreen) return;
-        screen1.classList.remove('active');
-        if (screen2) screen2.classList.remove('active');
-        screen3.classList.remove('active');
-
+    function goToScreen(targetScreen) {
+        [s1, s2, s3].forEach(s => s.classList.remove('active'));
         targetScreen.classList.add('active');
     }
 
-    if (footerScreen2) footerScreen2.addEventListener('click', () => showScreen(screen1));
-    if (footerScreen3) footerScreen3.addEventListener('click', () => showScreen(currentAlbum ? screen2 : screen1));
+    if (btnBackToAlbums) {
+        btnBackToAlbums.addEventListener('click', () => {
+            goToScreen(s1);
+        });
+    }
 
-    // 4. CONTROLES DE REPRODUCCIÓN (PANTALLA 3)
-    function loadTrack(index) {
-        if (!currentAlbum || currentAlbum.tracks.length === 0) return;
-        currentTrackIndex = index;
-        const track = currentAlbum.tracks[currentTrackIndex];
+    if (btnBackToSongs) {
+        btnBackToSongs.addEventListener('click', () => {
+            stopAudio();
+            goToScreen(s2);
+        });
+    }
 
-        // Usar la URI nativa devuelta por el sistema de documentos SAF
-        audio.src = window.Capacitor ? window.Capacitor.convertFileSrc(track.src) : track.src;
+    // =========================================
+    // PARAR AUDIO
+    // =========================================
 
-        if (trackTitleScreen3) trackTitleScreen3.textContent = track.title;
-        if (coverScreen3) {
-            coverScreen3.src = getValidCover(currentAlbum.cover);
-            coverScreen3.onerror = () => { coverScreen3.src = MUSIC_NOTE_SVG; };
+    function stopAudio() {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+
+        setPlayPauseIcon(false);
+
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'none';
         }
-
-        updatePlayButton(false);
     }
 
-    function updatePlayButton(playing) {
-        isPlaying = playing;
-        const playSVG = `<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M8 5v14l11-7z"/></svg>`;
-        const pauseSVG = `<svg viewBox="0 0 24 24" width="28" height="28" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+    // =========================================
+    // INICIO
+    // =========================================
 
-        if (playBtn) playBtn.innerHTML = isPlaying ? pauseSVG : playSVG;
-    }
+    initApp();
 
-    function playTrack() {
-        if (!audio.src) return;
-        audio.play().then(() => updatePlayButton(true)).catch(e => console.log('Error play:', e));
-    }
+    async function initApp() {
 
-    function togglePlay() {
-        if (!audio.src) return;
-        if (isPlaying) {
-            audio.pause();
-            updatePlayButton(false);
+        if (window.Capacitor && window.Capacitor.Plugins) {
+
+            await requestAppPermissions();
+
+            await readAbsolutePath();
+
         } else {
-            playTrack();
+
+            renderDemoData();
         }
     }
 
-    if (playBtn) playBtn.addEventListener('click', togglePlay);
+    // =========================================
+    // PERMISOS DEL SISTEMA
+    // =========================================
 
-    if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
-            if (!currentAlbum) return;
-            let prevIndex = currentTrackIndex - 1;
-            if (prevIndex < 0) prevIndex = currentAlbum.tracks.length - 1;
-            loadTrack(prevIndex);
-            playTrack();
-        });
-    }
+    async function requestAppPermissions() {
 
-    if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-            if (!currentAlbum) return;
-            let nextIndex = (currentTrackIndex + 1) % currentAlbum.tracks.length;
-            loadTrack(nextIndex);
-            playTrack();
-        });
-    }
+        const { Filesystem } =
+            window.Capacitor.Plugins;
 
-    audio.addEventListener('timeupdate', () => {
-        if (audio.duration) {
-            const progress = (audio.currentTime / audio.duration) * 100;
-            if (progressBar) progressBar.value = progress;
-            if (currentTimeEl) currentTimeEl.textContent = formatTime(audio.currentTime);
-            if (totalTimeEl) totalTimeEl.textContent = formatTime(audio.duration);
-        }
-    });
+        try {
 
-    if (progressBar) {
-        progressBar.addEventListener('input', () => {
-            if (audio.duration) {
-                audio.currentTime = (progressBar.value / 100) * audio.duration;
+            if (
+                Filesystem &&
+                Filesystem.requestPermissions
+            ) {
+
+                await Filesystem.requestPermissions();
             }
-        });
+
+        } catch (e) {
+
+            console.log(
+                'Error pidiendo permisos filesystem:',
+                e
+            );
+        }
+
+        // Permiso de notificaciones
+        if (
+            'Notification' in window &&
+            Notification.permission !== 'granted'
+        ) {
+
+            try {
+
+                await Notification.requestPermission();
+
+            } catch (e) {}
+        }
     }
 
-    function formatTime(secs) {
-        const m = Math.floor(secs / 60);
-        const s = Math.floor(secs % 60);
-        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    // =========================================
+    // OBTENER NOMBRE DE ARCHIVO/CARPETA
+    // =========================================
+
+    function parseItemName(item) {
+
+        if (!item) {
+            return '';
+        }
+
+        if (typeof item === 'string') {
+            return decodeURIComponent(item);
+        }
+
+        if (item.name) {
+            return item.name;
+        }
+
+        if (item.uri || item.path) {
+
+            const rawPath =
+                item.uri || item.path;
+
+            const decoded =
+                decodeURIComponent(rawPath);
+
+            const parts =
+                decoded.split('/');
+
+            return (
+                parts[parts.length - 1] ||
+                parts[parts.length - 2] ||
+                ''
+            );
+        }
+
+        return '';
     }
 
-    renderScreen1();
-});
+    // =========================================
+    // CARGAR COVER.JPG COMO BASE64 / WEBVIEW SRC
+    // =========================================
+
+    async function loadCoverAsDataUrl(
+        Filesystem,
+        absolutePath,
+        fallbackUri = null,
+        mimeType = 'image/jpeg'
+    ) {
+        // Intento 1: usar la conversión directa a URL de WebView de Capacitor (Más rápido y eficiente)
+        if (absolutePath && window.Capacitor && window.Capacitor.convertFileSrc) {
+            try {
+                const webviewUrl = window.Capacitor.convertFileSrc(absolutePath);
+                if (webviewUrl) return webviewUrl;
+            } catch (error) {
+                console.log('No se pudo convertir la ruta de la cover a URL de WebView:', error);
+            }
+        }
+
+        // Intento 2: leer directamente el archivo físico y pasar a Base64 si el intento 1 falla.
+        try {
+            const result = await Filesystem.readFile({
+                path: absolutePath
+            });
+
+            if (result && result.data) {
+                return `data:${mimeType};base64,${result.data}`;
+            }
+        } catch (error) {
+            console.log(
+                'No se pudo leer la cover por ruta absoluta:',
+                absolutePath,
+                error
+            );
+        }
+
+        // Intento 3: usar la URI / path alternativo que devuelve Android.
+        if (fallbackUri) {
+            try {
+                const result = await Filesystem.readFile({
+                    path: fallbackUri
+                });
+
+                if (result && result.data) {
+                    return `data:${mimeType};base64,${result.data}`;
+                }
+            } catch (error) {
+                console.log(
+                    'No se pudo leer la cover por URI alternativa:',
+                    fallbackUri,
+                    error
+                );
+            }
+        }
+
+        return null;
+    }
+
+    // =========================================
+    // LEER MiMusica
+    // =========================================
+
+    async function readAbsolutePath() {
+
+        try {
+
+            const { Filesystem } =
+                window.Capacitor.Plugins;
+
+            albumsMap = {};
+
+            let globalIdx = 0;
+
+            const rootDir =
+                await Filesystem
+                    .readdir({
+                        path: TARGET_PATH
+                    })
+                    .catch(() => null);
+
+            // =====================================
+            // NO HAY CARPETAS
+            // =====================================
+
+            if (
+                !rootDir ||
+                !rootDir.files ||
+                rootDir.files.length === 0
+            ) {
+
+                albumsList.innerHTML = `
+                    <p style="
+                        grid-column:1/-1;
+                        padding:20px;
+                        text-align:center;
+                        color:#aaa;
+                    ">
+                        No se encontraron álbumes.
+                    </p>
+                `;
+
+                return;
+            }
+
+            // =====================================
+            // RECORRER CADA ÁLBUM
+            // =====================================
+
+            for (const item of rootDir.files) {
+
+                const folderName =
+                    parseItemName(item);
+
+                if (!folderName) {
+                    continue;
+                }
+
+                const cleanFolderPath =
+                    `${TARGET_PATH}/${folderName}`;
+
+                let subDir = null;
+
+                // =================================
+                // LEER CARPETA DEL ÁLBUM
+                // =================================
+
+                try {
+                    // Usar la ruta estructurada nativa de Capacitor 5 si está disponible
+                    const pathTarget = item.path || cleanFolderPath;
+                    subDir = await Filesystem.readdir({
+                        path: pathTarget
+                    });
+
+                } catch (e1) {
+
+                    if (
+                        typeof item === 'object' &&
+                        item.uri
+                    ) {
+
+                        try {
+
+                            subDir =
+                                await Filesystem.readdir({
+                                    path: item.uri
+                                });
+
+                        } catch (e2) {
+
+                            console.log(
+                                'No se pudo leer carpeta:',
+                                folderName
+                            );
+                        }
+                    }
+                }
+
+                if (
+                    !subDir ||
+                    !subDir.files ||
+                    subDir.files.length === 0
