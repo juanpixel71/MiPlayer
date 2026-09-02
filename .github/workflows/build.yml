@@ -2,10 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
   build:
@@ -15,56 +14,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 24
 
       - name: Install dependencies
-        run: |
-          npm install
+        run: npm ci || npm install
 
-      - name: Prepare Web Assets
-        run: |
-          mkdir -p www
-          cp -r *.html *.js *.css *.json *.png www/ 2>/dev/null || true
-
-      - name: Backup Custom Android Files & Generate Platform
-        run: |
-          mkdir -p /tmp/android_backup
-          if [ -f "android/app/src/main/AndroidManifest.xml" ]; then
-            cp android/app/src/main/AndroidManifest.xml /tmp/android_backup/
-          fi
-          if [ -d "android/app/src/main/java" ]; then
-            cp -r android/app/src/main/java /tmp/android_backup/
-          fi
-          
-          rm -rf android
-          npx cap add android
-          
-          if [ -f "/tmp/android_backup/AndroidManifest.xml" ]; then
-            cp /tmp/android_backup/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-          fi
-          if [ -d "/tmp/android_backup/java" ]; then
-            cp -r /tmp/android_backup/java android/app/src/main/
-          fi
-
-      - name: Replace Android Icons with Custom icon.png
-        run: |
-          if [ -f "icon.png" ]; then
-            echo "Reemplazando iconos de Android..."
-            find android/app/src/main/res/ -name "ic_launcher*.png" -exec cp icon.png {} \;
-          fi
-
-      - name: Sync Capacitor project
-        run: |
-          npx cap sync android
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'zulu'
-          java-version: '17'
+      - name: Sync Capacitor
+        run: npx cap sync android
 
       - name: Build Android APK
         run: |
