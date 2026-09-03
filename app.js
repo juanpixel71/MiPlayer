@@ -34,10 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let isSeeking = false;
 
     const TARGET_PATH = '/storage/emulated/0/MiMusica';
+    const COVERS_PATH = `${TARGET_PATH}/COVERS`;
 
-    // Imagen de sustitución cuando un álbum no tiene cover.jpg
-    const DEFAULT_COVER =
-        '<div class="music-note-placeholder">🎵</div>';
+    // Plantilla visual para cuando un álbum NO tiene imagen
+    function getFallbackCoverHTML(albumName) {
+        return `<div class="album-title-placeholder"><span>${albumName}</span></div>`;
+    }
 
     // El botón conserva siempre su círculo exterior.
     // Solo cambia el icono interior mediante CSS.
@@ -195,61 +197,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================
-    // CARGAR COVER DE MANERA ROBUSTA
+    // CARGAR COVER DESDE LA CARPETA COVERS
     // =========================================
 
-    async function loadCoverAsDataUrl(
-        Filesystem,
-        absolutePath,
-        fallbackUri = null,
-        mimeType = 'image/jpeg'
-    ) {
-        // Intento 1: Convertir directamente la ruta mediante el puente Web de Capacitor
-        if (window.Capacitor && typeof window.Capacitor.convertFileSrc === 'function') {
-            try {
-                const converted = window.Capacitor.convertFileSrc(absolutePath);
-                if (converted) return converted;
-            } catch (e) {
-                console.log('Error en convertFileSrc absoluto:', e);
+    async function loadExternalCover(Filesystem, albumName) {
+        const extensions = ['jpg', 'jpeg', 'png'];
+
+        for (const ext of extensions) {
+            const absolutePath = `${COVERS_PATH}/${albumName}.${ext}`;
+
+            // Intento 1: Convertir la ruta absoluta directamente con Capacitor
+            if (window.Capacitor && typeof window.Capacitor.convertFileSrc === 'function') {
+                try {
+                    const converted = window.Capacitor.convertFileSrc(absolutePath);
+                    if (converted) return converted;
+                } catch (e) {}
             }
-        }
 
-        // Intento 2: Usar convertFileSrc sobre la URI alternativa de Android
-        if (fallbackUri && window.Capacitor && typeof window.Capacitor.convertFileSrc === 'function') {
+            // Intento 2: Leer el archivo como Base64 por si no permite convertFileSrc
             try {
-                const convertedUri = window.Capacitor.convertFileSrc(fallbackUri);
-                if (convertedUri) return convertedUri;
-            } catch (e) {
-                console.log('Error en convertFileSrc URI:', e);
-            }
-        }
-
-        // Intento 3: Leer el archivo como Base64 (Filesystem.readFile)
-        try {
-            const result = await Filesystem.readFile({
-                path: absolutePath
-            });
-
-            if (result && result.data) {
-                return `data:${mimeType};base64,${result.data}`;
-            }
-        } catch (error) {
-            console.log('No se pudo leer la cover en Base64 por ruta:', absolutePath);
-        }
-
-        // Intento 4: Intentar lectura Base64 desde la URI nativa
-        if (fallbackUri) {
-            try {
-                const result = await Filesystem.readFile({
-                    path: fallbackUri
-                });
-
+                const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+                const result = await Filesystem.readFile({ path: absolutePath });
                 if (result && result.data) {
                     return `data:${mimeType};base64,${result.data}`;
                 }
-            } catch (error) {
-                console.log('No se pudo leer la cover en Base64 por URI:', fallbackUri);
-            }
+            } catch (e) {}
         }
 
         return null;
@@ -310,7 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const folderName =
                     parseItemName(item);
 
-                if (!folderName) {
+                // Omitir nombres vacíos, ocultos o la propia carpeta COVERS
+                if (!folderName || folderName.startsWith('.') || folderName.toUpperCase() === 'COVERS') {
                     continue;
                 }
 
@@ -363,15 +336,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // =================================
-                // VARIABLES DEL ÁLBUM
+                // BUSCAR COVER EN /MiMusica/COVERS
                 // =================================
 
-                let coverUrl = null;
+                let coverUrl = await loadExternalCover(Filesystem, folderName);
 
                 const tracks = [];
 
                 // =================================
-                // RECORRER ARCHIVOS
+                // RECORRER ARCHIVOS DE AUDIO
                 // =================================
 
                 for (const fileInfo of subDir.files) {
@@ -393,63 +366,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         )
                             ? fileInfo.uri
                             : `${cleanFolderPath}/${fileName}`;
-
-                    const lowerName =
-                        fileName.toLowerCase();
-
-                    // =================================
-                    // COVER
-                    // =================================
-
-                    if (
-                        lowerName === 'cover.jpg' ||
-                        lowerName === 'cover.jpeg' ||
-                        lowerName === 'cover.png'
-                    ) {
-
-                        const absoluteCoverPath =
-                            `${cleanFolderPath}/${fileName}`;
-
-                        let mimeType =
-                            'image/jpeg';
-
-                        if (
-                            lowerName.endsWith('.png')
-                        ) {
-                            mimeType =
-                                'image/png';
-                        }
-
-                        try {
-
-                            const coverData =
-                                await loadCoverAsDataUrl(
-                                    Filesystem,
-                                    absoluteCoverPath,
-                                    (
-                                        typeof fileInfo === 'object' &&
-                                        fileInfo.uri
-                                    )
-                                        ? fileInfo.uri
-                                        : null,
-                                    mimeType
-                                );
-
-                            if (coverData) {
-                                coverUrl = coverData;
-                            }
-
-                        } catch (coverError) {
-
-                            console.log(
-                                'Error cargando cover:',
-                                folderName,
-                                coverError
-                            );
-                        }
-
-                        continue;
-                    }
 
                     // =================================
                     // CANCIONES
@@ -601,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'album-card';
 
             // =====================================
-            // SI HAY COVER
+            // SI HAY COVER USAMOS LA IMAGEN, SI NO EL TÍTULO
             // =====================================
 
             const coverHTML =
@@ -615,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         />
                     `
 
-                    : DEFAULT_COVER;
+                    : getFallbackCoverHTML(folderName);
 
             item.innerHTML = `
                 <div class="album-cover-box">
@@ -727,7 +643,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
 
             playerCover.innerHTML =
-                DEFAULT_COVER;
+                getFallbackCoverHTML(track.folder);
         }
 
         // =====================================
