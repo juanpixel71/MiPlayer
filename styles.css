@@ -90,10 +90,6 @@ body {
 
     letter-spacing: 0.5px;
 
-    /*
-       Permite que los nombres largos
-       ocupen más de una línea.
-    */
     white-space: normal;
 
     overflow: visible;
@@ -200,12 +196,6 @@ body {
     gap: 12px;
 }
 
-
-/*
-   La tarjeta es SOLO la zona de la cover.
-   No hay texto debajo.
-*/
-
 .album-card {
     width: 100%;
 
@@ -233,16 +223,6 @@ body {
     border-color: #f07818;
 }
 
-
-/*
-   ZONA DE CARÁTULA
-   Siempre cuadrada.
-
-   En un teléfono ocupará aproximadamente
-   la mitad del ancho disponible, pero mantiene
-   la proporción 1:1 de una cover 544x544.
-*/
-
 .album-cover-box {
     width: 100%;
 
@@ -269,34 +249,48 @@ body {
 
 
 /* =========================================
-   NOTA MUSICAL TEMPORAL
+   REEMPLAZO DE PORTADA SIN FOTO (TÍTULO DEL ÁLBUM)
    ========================================= */
 
-.music-note-placeholder {
+.album-title-placeholder {
     width: 100%;
     height: 100%;
 
-    background-color: #505050;
+    background: linear-gradient(135deg, #444444 0%, #2a2a2a 100%);
 
     display: flex;
 
     align-items: center;
     justify-content: center;
 
-    color: #dddddd;
+    padding: 12px;
 
-    font-size: 4.2rem;
-
-    line-height: 1;
-
-    opacity: 0.9;
+    text-align: center;
 }
 
+.album-title-placeholder span {
+    color: #ffffff;
 
-/*
-   El título del álbum que todavía existe
-   en index.html queda oculto.
-*/
+    font-size: 0.95rem;
+
+    font-weight: 700;
+
+    line-height: 1.35;
+
+    word-break: break-word;
+
+    overflow: hidden;
+
+    display: -webkit-box;
+
+    -webkit-line-clamp: 4;
+
+    -webkit-box-orient: vertical;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.3px;
+}
 
 .album-card-title {
     display: none;
@@ -363,12 +357,6 @@ body {
 
     padding: 16px;
 }
-
-
-/*
-   También dejamos preparada aquí
-   la zona cuadrada para la cover.
-*/
 
 .player-cover-box {
     width: 544px;
@@ -542,14 +530,6 @@ input[type=range] {
 .btn-main:active {
     background-color: #d9680e;
 }
-
-
-
-/* =========================================
-   ICONO PLAY / PAUSE ESTABLE
-   El círculo del botón no cambia de forma.
-   Solo cambia el icono interior.
-   ========================================= */
 
 .btn-main .play-pause-icon {
     width: 0;
